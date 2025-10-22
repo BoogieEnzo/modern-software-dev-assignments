@@ -8,14 +8,14 @@ Use the app in `week5/` as your playground. This week mirrors the prior assignme
 
 
 ## Explore the Starter Application
-Minimal full‑stack starter application designed to be a **"developer's command center"**. 
+Minimal full‑stack starter application.
 - FastAPI backend with SQLite (SQLAlchemy)
 - Static frontend (no Node toolchain needed)
 - Minimal tests (pytest)
 - Pre-commit (black + ruff)
 - Tasks to practice agent-driven workflows
 
-Use this application as your playground to experiment with the Claude automations you build.
+Use this application as your playground to experiment with the Warp automations you build.
 
 ### Structure
 
