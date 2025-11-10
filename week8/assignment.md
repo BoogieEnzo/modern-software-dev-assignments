@@ -28,7 +28,7 @@ Build 3 separate versions of the same app, each of which use a distinct stack. E
 Reminder that at least one version must include a non-JavaScript language for either frontend or backend (e.g., Python/Django, Ruby/Rails).
 
 
-At least one version must be built using the AI app generation platform **[`bolt.new`](https://bolt.new/)**, but feel free to explore other app generation platforms (e.g. Figma Make) for the other versions.
+At least one version must be built using the AI app generation platform **[`bolt.new`](https://bolt.new/)**, but feel free to explore other app generation platforms (e.g. Lovable, Figma Make) for the other versions.
 
 
 ## Learn about Bolt
