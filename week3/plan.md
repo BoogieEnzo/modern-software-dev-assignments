@@ -1,122 +1,185 @@
-# Week 3 学习型计划：OpenWeather MCP Server
+# Week 3 计划：OpenWeather MCP Server
 
-## 1. 先理解这门作业在做什么
-这次作业不是“做一个天气 App”，而是“做一个给大模型调用的工具服务”。
+---
 
-你要做的是一个 **MCP Server**。可以把它理解成：
-- 大模型是“会说话的大脑”
-- MCP Server 是“可被大脑调用的工具箱”
-- OpenWeather 是“工具箱背后的真实数据来源”
+## 第一部分：给学生看的“大图景说明”
 
-当模型需要天气信息时，不是胡猜，而是通过 MCP 调用你提供的工具，再由你的工具去请求 OpenWeather，最后把结构化结果返回给模型。
+这一周你要做的，不是一个给人用的天气 App，而是一个 **给大模型用的“天气工具箱”**：
 
-## 2. 什么是 MCP（学生版）
-MCP（Model Context Protocol）是一种约定，统一“模型如何调用外部能力”。
+- 大模型：会说话、会推理，但自己不会上网查天气。
+- 你的 MCP Server：是一个“天气工具箱”，大模型可以调用它。
+- OpenWeather API：是真实天气数据的来源。
 
-你在这个作业中会接触三个核心能力：
-- `tools`：可执行函数（本次作业最核心）
-- `resources`：可读取的数据资源（可选增强）
-- `prompts`：可复用提示模板（可选增强）
+**完整链路长这样：**
 
-最低通过线：把 `tools` 做好，至少 2 个。
+> 用户跟模型说话 → 模型决定调用 `get_current_weather` 等工具 →  
+> 工具在你的 MCP Server 里运行 → 去请求 OpenWeather →  
+> 把整理好的结果返回给模型 → 模型再用自然语言告诉用户。
 
-## 3. 这次作业真正训练的能力
-- 把“外部 API”封装成“稳定可调用的工具接口”
-- 参数设计与输入校验（不是只跑通 happy path）
-- 错误处理（超时、限流、空结果、上游异常）
-- 工程化交付（README、运行方式、示例调用）
+你要交付的是：
 
-一句话：训练你从“会写脚本”升级到“能交付可用服务”。
+1. **一个 MCP Server**（可以先做成本机 STDIO 版，后面有力气再考虑 HTTP 版）。
+2. **至少两个天气相关的 MCP tools**，比如：
+   - `get_current_weather`：查当前天气。
+   - `get_weather_forecast`：查未来一段时间的预报。
+3. **清晰的 README**，让别人知道：
+   - 怎么装依赖、怎么配置 `OPENWEATHER_API_KEY`。
+   - 怎么启动 server。
+   - MCP 客户端（Claude Desktop / Cursor）要如何配置才能调用这些 tools。
 
-## 4. 你的环境怎么用（Linux + Cursor + OpenCode + Codex CLI）
-你现在的工具链足够完成作业。建议分工如下（不涉及具体写哪行代码）：
-- `Cursor`：主编辑器，写文档、看目录结构、对照任务要求逐项检查。
-- `Codex CLI`：执行命令、跑测试、快速改文件、做收尾验收。
-- `OpenCode`：可作为第二个 AI 视角做 review 或补充说明。
+你真正要学会的能力是三件事：
 
-重点不是“哪个工具最强”，而是你要能解释：你的 server 如何被模型调用、如何在失败时给出稳定反馈。
+- 会把一个外部 HTTP API（OpenWeather）**封装成稳定、可重试的工具接口**。
+- 会处理坏情况：城市不存在、网络超时、被限流、上游 5xx。
+- 会写一份别人看得懂、能按照步骤复现的 README。
 
-## 5. API 选型与范围（已确定 OpenWeather）
+**如果你只看这一部分，大概需要记住的事情：**
+
+1. 我做的是“给模型用的天气工具箱”，不是手机 App。
+2. 我需要至少 2 个 tool：一个查当前天气，一个查未来预报。
+3. 我必须考虑异常情况，并在 README 里教别人怎么跑起来。
+
+---
+
+## 第二部分：给 AI Agent 的详细实施计划
+
+### 1. 目标与边界
+
+- 目标：基于 OpenWeather，交付一个 MCP Server，暴露至少 2 个可用的天气工具，满足课程对功能性、鲁棒性和文档的要求。
+- 范围：优先实现本地 STDIO MCP；有余力时，再尝试 HTTP 版本或云端部署（Vercel / Cloudflare 等）。
+
+### 2. 外部 API 设计（OpenWeather）
+
 使用 OpenWeather 免费端点：
-- `GET /geo/1.0/direct`：城市名 -> 经纬度
-- `GET /data/2.5/weather`：当前天气
-- `GET /data/2.5/forecast`：5 天 / 3 小时预报
 
-环境变量：
-- `OPENWEATHER_API_KEY`（必需）
-- `OPENWEATHER_BASE_URL`（可选，默认 `https://api.openweathermap.org`）
-- `REQUEST_TIMEOUT_SECONDS`（可选，默认 10）
+- `GET /geo/1.0/direct`：城市名 → 经纬度（用于先 geocoding）。
+- `GET /data/2.5/weather`：当前天气。
+- `GET /data/2.5/forecast`：5 天 / 3 小时预报。
 
-## 6. 你要交付的 MCP 能力（功能蓝图）
+关键环境变量：
 
-### 6.1 必做 tools（至少 2 个）
+- `OPENWEATHER_API_KEY`（必需）。
+- `OPENWEATHER_BASE_URL`（可选，默认 `https://api.openweathermap.org`）。
+- `REQUEST_TIMEOUT_SECONDS`（可选，默认 `10`）。
+
+### 3. MCP 能力设计
+
+#### 3.1 必做 tools
+
 1. `get_current_weather`
-- 输入：`city`、可选 `country_code`、`units`
-- 输出：当前温度、体感、湿度、风速、天气描述、观测时间
+   - 输入参数：
+     - `city: string`（必填）。
+     - `country_code?: string`（可选，ISO 3166-1 alpha-2，如 `CN`、`US`）。
+     - `units?: string`（可选，`standard` / `metric` / `imperial`，默认 `metric`）。
+   - 行为：
+     - 调用 geocoding 端点获取经纬度。
+     - 用经纬度请求当前天气。
+     - 返回结构化对象：温度、体感温度、湿度、风速、天气描述、观测时间、城市名。
 
 2. `get_weather_forecast`
-- 输入：`city`、可选 `country_code`、`units`、`hours`
-- 输出：未来若干小时天气序列（温度、降水概率、描述）
+   - 输入参数：
+     - `city: string`（必填）。
+     - `country_code?: string`。
+     - `units?: string`。
+     - `hours?: int`（可选，控制返回未来多少小时的数据，如 6/12/24，默认 12）。
+   - 行为：
+     - 同样先 geocoding。
+     - 调用 forecast 端点，按 3 小时间隔的列表。
+     - 按 `hours` 截断，返回时间序列：每个时间点的温度、降水概率（如果可用）、天气描述。
 
-### 6.2 可选增强
-- `resolve_city`：处理重名城市
-- `weather://cities/{query}` 资源：缓存查询结果
-- `weather_summary_prompt`：把预报整理成自然语言建议
+### 4. 代码结构规划
 
-## 7. 推荐目录结构（便于讲清楚你的工程设计）
+推荐目录（允许调整命名，但保持分层思想）：
+
 ```text
 week3/
   server/
-    main.py               # MCP server 入口（STDIO）
-    tools.py              # tools 定义
-    openweather_client.py # OpenWeather 请求封装
-    models.py             # 输入输出模型
-    errors.py             # 统一错误
-    config.py             # 环境变量配置
-    logging_config.py     # 日志配置（stderr）
+    main.py               # MCP server 入口（STDIO，后续可扩展 HTTP）
+    tools.py              # MCP tools 实现（调用 client 层）
+    openweather_client.py # OpenWeather 请求封装（HTTP 调用、重试、错误分类）
+    models.py             # Pydantic 数据模型：工具入参/出参、上游响应抽象
+    errors.py             # 自定义异常类型（超时、限流、城市未找到等）
+    config.py             # 读取环境变量，集中配置
+    logging_config.py     # 日志到 stderr 的统一配置
   tests/
-    test_tools.py
-    test_client.py
-  README.md
-  plan.md
+    test_tools.py         # 针对 tools 的单测（可用 mock 上游）
+    test_client.py        # 针对 client 行为的单测（超时、429 等）
+  README.md               # 对外文档
+  plan.md                 # 本文件
 ```
 
-## 8. 学习导向实施步骤（按“先懂后做”）
-1. 先画数据流：模型 -> MCP tool -> OpenWeather -> MCP -> 模型。
-2. 明确两个 tool 的输入输出契约（字段、类型、边界）。
-3. 再做请求封装：把 OpenWeather 调用统一放在 client 层。
-4. 补齐异常路径：超时、429、城市不存在、5xx。
-5. 写最小测试：至少覆盖 1 条成功 + 1 条失败路径/工具。
-6. 最后写 README：让别人不问你就能跑起来并会调用。
+### 5. 实施步骤（Agent 视角）
 
-## 9. 鲁棒性标准（老师看重）
-- 超时：返回可读错误，不崩溃。
-- 限流（429）：提示等待或重试策略。
-- 空结果：明确说明“未找到城市”，而不是返回模糊空对象。
-- 参数错误：在工具入口就拦截非法值。
-- 日志规范：STDIO 模式下不要把日志打到 stdout。
+1. **初始化工程**
+   - 在 `week3/` 下创建 `server/`、`tests/`、`README.md`。
+   - 选择 Python 作为实现语言，引入 MCP Python SDK（或符合作业要求的最小 JSON-RPC 实现）。
 
-## 10. 交付物检查清单（提交前自查）
-- `week3/server/*`：源代码完整，结构清晰。
-- `week3/README.md`：
-  - 安装与运行步骤
-  - 环境变量说明
-  - MCP 客户端配置示例（至少一种）
-  - 每个 tool 的参数和示例输出
-- 你可以口头解释：
-  - 为什么要先 geocoding 再查天气
-  - 发生 429/超时时用户会看到什么
-  - 你的设计如何满足“2+ tools + resilience”
+2. **配置与模型**
+   - 在 `config.py` 中读取并验证必要环境变量。
+   - 在 `models.py` 中用类型模型定义：
+     - 工具入参模型（两个 tools）。
+     - 工具输出模型（统一字段名，便于文档化）。
+     - 对 OpenWeather 响应做最小必要抽象，避免在业务层直接操作原始 JSON。
 
-## 11. 与评分标准对齐（你该把精力放哪）
-- Functionality（35）：先确保 2 个工具真实可用。
-- Reliability（20）：重点拿稳超时/限流/空结果处理。
-- Developer Experience（20）：README 可直接复现。
-- Code Quality（15）：分层清楚、命名清楚、逻辑不绕。
-- Extra Credit（10）：最后有余力再做远程 HTTP 或鉴权。
+3. **OpenWeather client 封装**
+   - 在 `openweather_client.py` 中实现：
+     - `geocode_city(city, country_code)`。
+     - `fetch_current_weather(lat, lon, units)`。
+     - `fetch_forecast(lat, lon, units)`。
+   - 增加：
+     - 超时设置（使用 `REQUEST_TIMEOUT_SECONDS`）。
+     - 对 4xx/5xx 的分类：
+       - 429：专门映射为 `RateLimitError`。
+       - 404 / 空结果：映射为 `CityNotFoundError` 或类似。
+   - 所有错误统一抛出自定义异常，交给上层 tools 处理为可读信息。
 
-## 12. 常见误区（提前避坑）
-- 误区 1：只追求“能返回数据”，忽略异常路径。
-- 误区 2：README 太简略，别人无法复现。
-- 误区 3：日志输出污染 stdout，导致 MCP 通信异常。
-- 误区 4：城市重名不处理，结果看似成功但语义错误。
+4. **Tools 实现**
+   - 在 `tools.py` 中：
+     - 注册两个 tools 的元数据（名称、描述、参数 schema）。
+     - 在 handler 中调用 client 层：
+       - 先 geocoding，处理重名/空结果。
+       - 再拉天气/预报，并按模型定义组装输出。
+     - 捕获 client 抛出的异常，转换为：
+       - 清晰错误信息字符串。
+       - 简洁的错误码（如 `rate_limit`, `city_not_found`, `timeout`）。
+
+5. **MCP Server 入口**
+   - 在 `main.py` 中：
+     - 按 MCP STDIO quickstart 要求，注册 tools，并启动事件循环。
+     - 确保日志全部通过 `logging` 输出到 stderr，不污染 stdout。
+   - 若有时间，再增加一个简单 HTTP endpoint：
+     - 使用 FastAPI/Flask 暴露一个 JSON-RPC 兼容接口，实现 Remote HTTP 模式。
+
+6. **测试与自验**
+   - 在 `tests/test_client.py` 中：
+     - mock OpenWeather 响应，覆盖：
+       - 正常城市返回。
+       - 空数组（城市不存在）。
+       - 429 限流。
+       - 5xx 上游错误。
+   - 在 `tests/test_tools.py` 中：
+     - mock client，验证 tools 在成功/失败时的输出结构和错误信息。
+
+7. **README 编写**
+   - 描述：
+     - 依赖安装步骤（例如 `pip install -r requirements.txt` 或 `uv` 流程）。
+     - 必需/可选环境变量及默认值。
+     - 启动 MCP Server 的命令。
+     - 至少一个 MCP 客户端的配置示例（Claude Desktop / Cursor / inspector）。
+     - 两个主要 tools 的参数说明和示例输入输出。
+
+### 6. 鲁棒性与评分对齐（Agent 需要保证）
+
+- **鲁棒性标准：**
+  - 超时：工具返回“请求 OpenWeather 超时，请稍后重试”之类的可读信息，不崩溃。
+  - 限流：识别 429，提示用户稍后重试或减小频率。
+  - 空结果：对城市名无法解析时，明确返回“未找到该城市，请检查拼写或加上国家代码”。
+  - 参数错误：在 tools 入参层面做简单校验（例如 `hours > 0` 且不超过某个上限）。
+  - 日志：不往 stdout 打杂，所有 debug/info/error 走 stderr。
+
+- **与评分标准的映射：**
+  - Functionality（35）：确保两个工具全流程跑通，参数清晰。
+  - Reliability（20）：通过错误分类、超时配置、限流处理来拿分。
+  - Developer Experience（20）：README 可复现、目录结构清楚。
+  - Code Quality（15）：分层、命名、类型标注基本到位。
+  - Extra Credit（10）：有余力再做 HTTP MCP 或鉴权（如 API key 校验）。
