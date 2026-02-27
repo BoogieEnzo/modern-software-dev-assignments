@@ -51,3 +51,40 @@ def test_note_validation_and_delete(client):
     assert r.status_code == 404
 
 
+def test_notes_pagination_and_sorting(client):
+    # create multiple notes with titles out of lexical order
+    payloads = [
+        {"title": "B note", "content": "b"},
+        {"title": "A note", "content": "a"},
+        {"title": "C note", "content": "c"},
+    ]
+    for payload in payloads:
+        r = client.post("/notes/", json=payload)
+        assert r.status_code == 201, r.text
+
+    # sort by title ascending
+    r = client.get("/notes/", params={"sort": "title"})
+    assert r.status_code == 200
+    items = r.json()
+    assert [item["title"] for item in items] == ["A note", "B note", "C note"]
+
+    # sort by title descending
+    r = client.get("/notes/", params={"sort": "-title"})
+    assert r.status_code == 200
+    items = r.json()
+    assert [item["title"] for item in items] == ["C note", "B note", "A note"]
+
+    # pagination with skip and limit combined with sorting
+    r = client.get("/notes/", params={"sort": "title", "skip": 1, "limit": 1})
+    assert r.status_code == 200
+    items = r.json()
+    assert len(items) == 1
+    assert items[0]["title"] == "B note"
+
+    # invalid sort field should fall back to default and still succeed
+    r = client.get("/notes/", params={"sort": "nonexistent"})
+    assert r.status_code == 200
+    items = r.json()
+    assert len(items) == 3
+
+

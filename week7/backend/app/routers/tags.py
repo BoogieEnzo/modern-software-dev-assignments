@@ -22,6 +22,7 @@ def list_tags(
 
 @router.post("/", response_model=TagRead, status_code=201)
 def create_tag(payload: TagCreate, db: Session = Depends(get_db)) -> TagRead:
+    # Check if tag already exists
     existing = db.execute(select(Tag).where(Tag.name == payload.name)).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="Tag already exists")

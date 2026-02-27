@@ -20,6 +20,16 @@ note_tags = Table(
 )
 
 
+class Tag(Base, TimestampMixin):
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False, unique=True, index=True)
+
+    # Many-to-many relationship with Notes
+    notes = relationship("Note", secondary=note_tags, back_populates="tags")
+
+
 class Note(Base, TimestampMixin):
     __tablename__ = "notes"
 
@@ -37,13 +47,3 @@ class ActionItem(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     description = Column(Text, nullable=False)
     completed = Column(Boolean, default=False, nullable=False)
-
-
-class Tag(Base, TimestampMixin):
-    __tablename__ = "tags"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), nullable=False, unique=True, index=True)
-
-    # Many-to-many relationship with Notes
-    notes = relationship("Note", secondary=note_tags, back_populates="tags")

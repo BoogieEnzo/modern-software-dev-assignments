@@ -80,6 +80,7 @@ def add_tag_to_note(note_id: int, payload: TagCreate, db: Session = Depends(get_
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    # Find or create the tag
     tag = db.execute(select(Tag).where(Tag.name == payload.name)).scalar_one_or_none()
     if not tag:
         tag = Tag(name=payload.name)
@@ -87,6 +88,7 @@ def add_tag_to_note(note_id: int, payload: TagCreate, db: Session = Depends(get_
         db.flush()
         db.refresh(tag)
 
+    # Add tag to note if not already present
     if tag not in note.tags:
         note.tags.append(tag)
         db.flush()
