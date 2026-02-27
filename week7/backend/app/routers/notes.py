@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import asc, desc, select
 from sqlalchemy.orm import Session
 
@@ -15,8 +15,8 @@ router = APIRouter(prefix="/notes", tags=["notes"])
 def list_notes(
     db: Session = Depends(get_db),
     q: Optional[str] = None,
-    skip: int = 0,
-    limit: int = Query(50, le=200),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     sort: str = Query("-created_at", description="Sort by field, prefix with - for desc"),
 ) -> list[NoteRead]:
     stmt = select(Note)
@@ -64,5 +64,15 @@ def get_note(note_id: int, db: Session = Depends(get_db)) -> NoteRead:
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     return NoteRead.model_validate(note)
+
+
+@router.delete("/{note_id}", status_code=204)
+def delete_note(note_id: int, db: Session = Depends(get_db)) -> Response:
+    note = db.get(Note, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    db.delete(note)
+    # Commit is managed by the get_db dependency
+    return Response(status_code=204)
 
 
