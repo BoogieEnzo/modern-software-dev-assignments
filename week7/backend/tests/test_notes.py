@@ -23,3 +23,31 @@ def test_create_list_and_patch_notes(client):
     assert patched["title"] == "Updated"
 
 
+def test_note_validation_and_delete(client):
+    # title and content must be non-empty
+    r = client.post("/notes/", json={"title": "", "content": "content"})
+    assert r.status_code == 422
+
+    r = client.post("/notes/", json={"title": "title", "content": ""})
+    assert r.status_code == 422
+
+    # pagination params must be within bounds
+    r = client.get("/notes/", params={"skip": -1})
+    assert r.status_code == 422
+
+    r = client.get("/notes/", params={"limit": 0})
+    assert r.status_code == 422
+
+    # create a valid note then delete it
+    r = client.post("/notes/", json={"title": "To delete", "content": "temp"})
+    assert r.status_code == 201
+    note_id = r.json()["id"]
+
+    r = client.delete(f"/notes/{note_id}")
+    assert r.status_code == 204
+
+    # subsequent get should return 404
+    r = client.get(f"/notes/{note_id}")
+    assert r.status_code == 404
+
+
