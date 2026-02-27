@@ -24,6 +24,8 @@
     <div class="row">
       <label class="row"><input id="save_note" type="checkbox" checked /> Save as note</label>
       <button id="extract">Extract</button>
+      <button id="extract-llm">Extract LLM</button>
+      <button id="list-notes">List Notes</button>
     </div>
 
     <div class="items" id="items"></div>
@@ -31,13 +33,13 @@
     <script>
       const $ = (sel) => document.querySelector(sel);
       const itemsEl = $('#items');
-      const btn = $('#extract');
-      btn.addEventListener('click', async () => {
+
+      async function renderActionItemsFromEndpoint(endpoint) {
         const text = $('#text').value;
         const save = $('#save_note').checked;
         itemsEl.textContent = 'Extracting...';
         try {
-          const res = await fetch('/action-items/extract', {
+          const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, save_note: save }),
@@ -64,6 +66,33 @@
         } catch (err) {
           console.error(err);
           itemsEl.textContent = 'Error extracting items';
+        }
+      }
+
+      $('#extract').addEventListener('click', () => {
+        renderActionItemsFromEndpoint('/action-items/extract');
+      });
+
+      $('#extract-llm').addEventListener('click', () => {
+        renderActionItemsFromEndpoint('/action-items/extract-llm');
+      });
+
+      $('#list-notes').addEventListener('click', async () => {
+        itemsEl.textContent = 'Loading notes...';
+        try {
+          const res = await fetch('/notes', { method: 'GET' });
+          if (!res.ok) throw new Error('Request failed');
+          const notes = await res.json();
+          if (!notes || notes.length === 0) {
+            itemsEl.innerHTML = '<p class="muted">No notes found.</p>';
+            return;
+          }
+          itemsEl.innerHTML = notes.map(n => (
+            `<div class="item"><span class="muted">#${n.id}</span> <span>${n.content}</span></div>`
+          )).join('');
+        } catch (err) {
+          console.error(err);
+          itemsEl.textContent = 'Error loading notes';
         }
       });
 
