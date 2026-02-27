@@ -22,6 +22,31 @@ def test_create_complete_list_and_patch_action_item(client):
     assert patched["description"] == "Updated"
 
 
+def test_action_item_validation_and_delete(client):
+    # description must be non-empty
+    r = client.post("/action-items/", json={"description": ""})
+    assert r.status_code == 422
+
+    # pagination params must be within bounds
+    r = client.get("/action-items/", params={"skip": -1})
+    assert r.status_code == 422
+
+    r = client.get("/action-items/", params={"limit": 0})
+    assert r.status_code == 422
+
+    # create a valid item then delete it
+    r = client.post("/action-items/", json={"description": "To delete"})
+    assert r.status_code == 201
+    item_id = r.json()["id"]
+
+    r = client.delete(f"/action-items/{item_id}")
+    assert r.status_code == 204
+
+    # subsequent get should return 404
+    r = client.get(f"/action-items/{item_id}")
+    assert r.status_code == 404
+
+
 def test_action_items_pagination_and_sorting(client):
     # create multiple action items with descriptions out of lexical order
     payloads = [

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import asc, desc, select
 from sqlalchemy.orm import Session
 
@@ -67,11 +67,12 @@ def get_note(note_id: int, db: Session = Depends(get_db)) -> NoteRead:
 
 
 @router.delete("/{note_id}", status_code=204)
-def delete_note(note_id: int, db: Session = Depends(get_db)) -> None:
+def delete_note(note_id: int, db: Session = Depends(get_db)) -> Response:
     note = db.get(Note, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     db.delete(note)
+    return Response(status_code=204)
 
 
 @router.post("/{note_id}/tags", response_model=NoteRead)
