@@ -8,7 +8,7 @@ class Note(Base):
     __tablename__ = "notes"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), nullable=False)
+    title = Column(String(200), nullable=False, index=True)
     content = Column(Text, nullable=False)
 
 
@@ -17,4 +17,4 @@ class ActionItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     description = Column(Text, nullable=False)
-    completed = Column(Boolean, default=False, nullable=False)
+    completed = Column(Boolean, default=False, nullable=False, index=True)

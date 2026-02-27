@@ -26,6 +26,14 @@
           <input id="action-desc" placeholder="Description" required />
           <button type="submit">Add</button>
         </form>
+        <div id="action-controls">
+          <div id="action-filters">
+            <button type="button" data-filter="all">All</button>
+            <button type="button" data-filter="open">Open</button>
+            <button type="button" data-filter="done">Completed</button>
+          </div>
+          <button type="button" id="bulk-complete" disabled>Complete Selected</button>
+        </div>
         <ul id="actions"></ul>
       </section>
     </main>

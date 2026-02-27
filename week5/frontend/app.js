@@ -15,13 +15,47 @@ async function loadNotes() {
   }
 }
 
+let currentActionFilter = 'all'; // 'all' | 'open' | 'done'
+let selectedActionIds = new Set();
+
+function updateBulkButtonState() {
+  const bulkBtn = document.getElementById('bulk-complete');
+  bulkBtn.disabled = selectedActionIds.size === 0;
+}
+
+function buildActionsUrl() {
+  if (currentActionFilter === 'open') return '/action-items?completed=false';
+  if (currentActionFilter === 'done') return '/action-items?completed=true';
+  return '/action-items/';
+}
+
 async function loadActions() {
   const list = document.getElementById('actions');
   list.innerHTML = '';
-  const items = await fetchJSON('/action-items/');
+  selectedActionIds = new Set();
+  updateBulkButtonState();
+
+  const items = await fetchJSON(buildActionsUrl());
   for (const a of items) {
     const li = document.createElement('li');
-    li.textContent = `${a.description} [${a.completed ? 'done' : 'open'}]`;
+    const label = document.createElement('span');
+    label.textContent = `${a.description} [${a.completed ? 'done' : 'open'}]`;
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.style.marginRight = '0.5rem';
+    checkbox.onchange = () => {
+      if (checkbox.checked) {
+        selectedActionIds.add(a.id);
+      } else {
+        selectedActionIds.delete(a.id);
+      }
+      updateBulkButtonState();
+    };
+
+    li.appendChild(checkbox);
+    li.appendChild(label);
+
     if (!a.completed) {
       const btn = document.createElement('button');
       btn.textContent = 'Complete';
@@ -59,6 +93,34 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     e.target.reset();
     loadActions();
+  });
+
+  document
+    .getElementById('action-filters')
+    .addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const value = target.getAttribute('data-filter');
+      if (!value) return;
+      currentActionFilter = value;
+
+      document
+        .querySelectorAll('#action-filters button')
+        .forEach((btn) => btn.removeAttribute('data-active'));
+      target.setAttribute('data-active', 'true');
+
+      loadActions();
+    });
+
+  document.getElementById('bulk-complete').addEventListener('click', async () => {
+    if (selectedActionIds.size === 0) return;
+    const ids = Array.from(selectedActionIds);
+    await fetchJSON('/action-items/bulk-complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ids),
+    });
+    await loadActions();
   });
 
   loadNotes();
