@@ -1,0 +1,23 @@
+INFO:     Started server process [293098]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+INFO:     127.0.0.1:43224 - "GET / HTTP/1.1" 200 OK
+[Background] Started auto-refresh thread (every 4 hours)
+[Agent] Failed to fetch agent repos: Client error '422 Unprocessable Entity' for url 'https://api.github.com/search/repositories?q=stars%3A%3E%3D100%20archived%3Afalse%20created%3A%3E%3D2026-01-29%20%28agent%20OR%20AI%20agent%20OR%20autonomous%20OR%20%22agent%20framework%22%20OR%20%22agent%20OS%22%20OR%20%22agentic%22%20OR%20%22AI%20operator%22%20OR%20%22autonomous%20agent%22%20OR%20%22tool%20use%22%20OR%20%22agentic%20AI%22%29&sort=stars&order=desc&per_page=30&page=1'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422
+INFO:     127.0.0.1:35110 - "GET /api/trending/today HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46440 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46440 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46452 - "GET /static/styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46452 - "GET /api/trending/today HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46452 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:46452 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46452 - "GET /api/trending/today HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38806 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38806 - "GET /api/trending/today HTTP/1.1" 200 OK
+INFO:     100.114.70.79:59795 - "GET / HTTP/1.1" 200 OK
+INFO:     100.114.70.79:59795 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     100.114.70.79:59796 - "GET /static/styles.css HTTP/1.1" 200 OK
+INFO:     100.114.70.79:59796 - "GET /api/trending/today HTTP/1.1" 200 OK
+INFO:     100.114.70.79:59796 - "GET /favicon.ico HTTP/1.1" 404 Not Found

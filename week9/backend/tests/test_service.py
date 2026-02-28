@@ -27,6 +27,6 @@ def test_sensitive_repo_filter() -> None:
 
 def test_build_reason_includes_gain() -> None:
     repo = {"language": "Python", "updated_at": "2026-02-26T12:00:00Z"}
-    reason = build_reason(repo, weekly_star_gain=321)
+    reason = build_reason(repo, weekly_star_gain=321, monthly_star_gain=500)
     assert "321" in reason
     assert "Python" in reason

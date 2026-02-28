@@ -46,6 +46,31 @@ class GitHubClient:
         payload = response.json()
         return payload.get("items", [])
 
+    def search_agent_repos(
+        self,
+        page_size: int = 50,
+        sort: str = "stars",
+        order: str = "desc",
+        page: int = 1,
+        created_days_ago: int = 30,
+    ) -> List[Dict[str, Any]]:
+        created_date = (datetime.now(timezone.utc) - timedelta(days=created_days_ago)).date()
+        # GitHub search: parenthesized OR groups silently return 0; use plain keyword
+        query = f"stars:>=100 archived:false created:>={created_date} agent in:name,description,topics"
+        url = f"{self.base_url}/search/repositories"
+        params = {
+            "q": query,
+            "sort": sort,
+            "order": order,
+            "per_page": page_size,
+            "page": page,
+        }
+        with httpx.Client(timeout=15.0, headers=self.headers) as client:
+            response = client.get(url, params=params)
+            response.raise_for_status()
+        payload = response.json()
+        return payload.get("items", [])
+
     def list_star_events(self, owner: str, repo: str, per_page: int = 100) -> List[Dict[str, Any]]:
         url = f"{self.base_url}/repos/{owner}/{repo}/stargazers"
         headers = dict(self.headers)

@@ -20,6 +20,7 @@ class RepoSnapshot(Base):
     snapshot_date = Column(String(10))
     repos_7d_json = Column(JSON)
     repos_30d_json = Column(JSON)
+    repos_agent_json = Column(JSON)
     generated_at = Column(DateTime(timezone=True))
     status = Column(String(20))
     error_msg = Column(String, nullable=True)
@@ -41,6 +42,7 @@ def save_snapshot(
     snapshot_date: str,
     repos_7d: List[Dict[str, Any]],
     repos_30d: List[Dict[str, Any]],
+    repos_agent: List[Dict[str, Any]] = [],
     status: str = "success",
     error_msg: Optional[str] = None,
 ) -> RepoSnapshot:
@@ -53,6 +55,7 @@ def save_snapshot(
         if existing:
             existing.repos_7d_json = repos_7d
             existing.repos_30d_json = repos_30d
+            existing.repos_agent_json = repos_agent
             existing.generated_at = now
             existing.status = status
             existing.error_msg = error_msg
@@ -62,6 +65,7 @@ def save_snapshot(
                 snapshot_date=snapshot_date,
                 repos_7d_json=repos_7d,
                 repos_30d_json=repos_30d,
+                repos_agent_json=repos_agent,
                 generated_at=now,
                 status=status,
                 error_msg=error_msg,
@@ -87,6 +91,7 @@ def load_today_snapshot(today: str) -> Optional[Dict[str, Any]]:
                 "generated_at": snapshot.generated_at,
                 "repos_7d": snapshot.repos_7d_json,
                 "repos_30d": snapshot.repos_30d_json,
+                "repos_agent": snapshot.repos_agent_json or [],
             }
 
         return None

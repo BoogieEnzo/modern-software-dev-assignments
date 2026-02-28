@@ -41,6 +41,18 @@ body {
   margin-top: 24px;
 }
 
+.three-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
 .trending-section {
   min-width: 0;
 }
@@ -107,6 +119,42 @@ body {
 }
 
 .reason {
+  margin-top: 12px;
+  padding: 10px;
+  border-left: 4px solid var(--accent);
+  background: #f1f8f2;
+  font-size: 0.9rem;
+}
+
+.topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.topic {
+  background: #e8f0fe;
+  color: #1a73e8;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 1024px) {
+  .three-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .two-columns {
+    grid-template-columns: 1fr;
+  }
+  .three-columns {
+    grid-template-columns: 1fr;
+  }
+}
   margin-top: 12px;
   padding: 10px;
   border-left: 4px solid var(--accent);
