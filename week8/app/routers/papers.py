@@ -9,7 +9,15 @@ import re
 
 from ..database import get_db
 from ..models import Paper
-from ..schemas import PaperResponse, ArxivSearchResult, DownloadRequest, ChatRequest, ChatResponse
+from ..schemas import (
+    PaperResponse,
+    ArxivSearchResult,
+    DownloadRequest,
+    ChatRequest,
+    ChatResponse,
+    EnrichRequest,
+    EnrichResponse,
+)
 from ..services import ArxivService, PapersWithCodeService, OllamaService, PDFService
 
 router = APIRouter(prefix="/api/papers", tags=["papers"])
@@ -19,6 +27,51 @@ arxiv_service = ArxivService()
 pwc_service = PapersWithCodeService()
 ollama_service = OllamaService()
 pdf_service = PDFService()
+
+ARXIV_ID_RE = re.compile(r"\b\d{4}\.\d{4,5}(?:v\d+)?\b")
+
+
+def _normalize_whitespace(text: str | None) -> str | None:
+    if text is None:
+        return None
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    return cleaned or None
+
+
+def _normalize_title(text: str | None) -> str | None:
+    if text is None:
+        return None
+    text = _normalize_whitespace(text)
+    if text is None:
+        return None
+    # Keep DB-safe title length.
+    return text[:500]
+
+
+def _extract_arxiv_id_from_text(text: str | None) -> str | None:
+    if not text:
+        return None
+    normal = ARXIV_ID_RE.search(text)
+    if normal:
+        return normal.group()
+    reversed_text = text[::-1]
+    reversed_match = ARXIV_ID_RE.search(reversed_text)
+    if reversed_match:
+        return reversed_match.group()
+    return None
+
+
+def _looks_low_quality_title(title: str | None) -> bool:
+    title = _normalize_title(title)
+    if not title:
+        return True
+    if ARXIV_ID_RE.fullmatch(title):
+        return True
+    if len(title) > 220:
+        return True
+    if "arXiv:" in title or "viXra" in title:
+        return True
+    return False
 
 
 @router.get("/", response_model=List[PaperResponse])
@@ -150,6 +203,84 @@ def download_paper(request: DownloadRequest, db: Session = Depends(get_db)):
         return PaperResponse.model_validate(paper)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to download: {str(e)}")
+
+
+@router.post("/enrich", response_model=EnrichResponse)
+def enrich_papers_metadata(request: EnrichRequest, db: Session = Depends(get_db)):
+    """Enrich local paper metadata using arXiv IDs and normalization rules."""
+    query = db.query(Paper).order_by(Paper.created_at.desc())
+    if request.limit and request.limit > 0:
+        papers = query.limit(request.limit).all()
+    else:
+        papers = query.all()
+
+    processed = 0
+    updated = 0
+    skipped = 0
+    failed = 0
+    assigned_arxiv_ids = {p.arxiv_id for p in papers if p.arxiv_id}
+
+    for paper in papers:
+        processed += 1
+        changed = False
+        try:
+            source_text = " ".join(
+                [
+                    paper.arxiv_id or "",
+                    paper.title or "",
+                    os.path.basename(paper.pdf_path or ""),
+                ]
+            )
+            candidate_arxiv_id = _extract_arxiv_id_from_text(source_text)
+
+            if candidate_arxiv_id and paper.arxiv_id != candidate_arxiv_id:
+                if candidate_arxiv_id not in assigned_arxiv_ids:
+                    paper.arxiv_id = candidate_arxiv_id
+                    assigned_arxiv_ids.add(candidate_arxiv_id)
+                    changed = True
+
+            # Always apply lightweight normalization.
+            norm_title = _normalize_title(paper.title)
+            norm_authors = _normalize_whitespace(paper.authors)
+            if norm_title and norm_title != paper.title:
+                paper.title = norm_title
+                changed = True
+            if norm_authors != paper.authors:
+                paper.authors = norm_authors
+                changed = True
+
+            if paper.arxiv_id:
+                metadata = arxiv_service.get_metadata(paper.arxiv_id)
+                if metadata:
+                    if (not paper.title) or _looks_low_quality_title(paper.title):
+                        if metadata.get("title"):
+                            paper.title = _normalize_title(metadata["title"])
+                            changed = True
+                    if not paper.authors and metadata.get("authors"):
+                        paper.authors = _normalize_whitespace(metadata["authors"])
+                        changed = True
+                    if not paper.abstract and metadata.get("abstract"):
+                        paper.abstract = metadata["abstract"]
+                        changed = True
+                    if not paper.year and metadata.get("year"):
+                        paper.year = metadata["year"]
+                        changed = True
+
+            if changed:
+                db.commit()
+                updated += 1
+            else:
+                skipped += 1
+        except Exception:
+            db.rollback()
+            failed += 1
+
+    return EnrichResponse(
+        processed=processed,
+        updated=updated,
+        skipped=skipped,
+        failed=failed,
+    )
 
 
 def scan_papers_folder(papers_dir: str, db: Session):

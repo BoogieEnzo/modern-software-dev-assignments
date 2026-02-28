@@ -185,3 +185,104 @@ def test_scan_papers_folder_skips_existing(mock_glob, mock_extract, client, test
 
     papers = test_db.query(Paper).all()
     assert len(papers) == 2
+
+
+@patch("app.routers.papers.arxiv_service.get_metadata")
+def test_enrich_papers_metadata_from_filename_arxiv_id(mock_get_metadata, client, test_db):
+    """POST /api/papers/enrich should fill fields from arXiv metadata."""
+    mock_get_metadata.return_value = {
+        "arxiv_id": "2502.11708v1",
+        "title": "Clean Linux Kernel Title",
+        "authors": "Alice, Bob",
+        "abstract": "Kernel paper abstract",
+        "year": 2025,
+    }
+    paper = Paper(
+        title="2502.11708v1",
+        authors=None,
+        abstract=None,
+        arxiv_id=None,
+        pdf_path="/tmp/2502.11708v1.pdf",
+        year=None,
+    )
+    test_db.add(paper)
+    test_db.commit()
+
+    response = client.post("/api/papers/enrich", json={})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["processed"] == 1
+    assert payload["updated"] == 1
+    assert payload["failed"] == 0
+
+    test_db.refresh(paper)
+    assert paper.arxiv_id == "2502.11708v1"
+    assert paper.title == "Clean Linux Kernel Title"
+    assert paper.authors == "Alice, Bob"
+    assert paper.year == 2025
+
+
+@patch("app.routers.papers.arxiv_service.get_metadata")
+def test_enrich_papers_metadata_extracts_reversed_arxiv_id(mock_get_metadata, client, test_db):
+    """POST /api/papers/enrich should recover arXiv IDs from reversed strings."""
+    mock_get_metadata.return_value = {
+        "arxiv_id": "1410.0846v1",
+        "title": "Recovered Title",
+        "authors": "Recovered Author",
+        "abstract": "Recovered abstract",
+        "year": 2014,
+    }
+    paper = Paper(
+        title="4102 tcO 2 ]ES.sc[ 1v6480.0141:viXra",
+        authors=None,
+        abstract=None,
+        arxiv_id=None,
+        pdf_path="/tmp/noisy.pdf",
+        year=None,
+    )
+    test_db.add(paper)
+    test_db.commit()
+
+    response = client.post("/api/papers/enrich", json={})
+    assert response.status_code == 200
+    test_db.refresh(paper)
+    assert paper.arxiv_id == "1410.0846v1"
+    assert paper.title == "Recovered Title"
+    assert paper.authors == "Recovered Author"
+    assert paper.year == 2014
+
+
+@patch("app.routers.papers.arxiv_service.get_metadata")
+def test_enrich_papers_metadata_skips_arxiv_id_conflict(mock_get_metadata, client, test_db):
+    """POST /api/papers/enrich should not overwrite to duplicate arXiv IDs."""
+    mock_get_metadata.return_value = {
+        "arxiv_id": "2502.11708v1",
+        "title": "Some Title",
+        "authors": "Some Author",
+        "abstract": "Some abstract",
+        "year": 2025,
+    }
+    paper_a = Paper(
+        title="A",
+        authors="A",
+        abstract="A",
+        arxiv_id="2502.11708v1",
+        pdf_path="/tmp/a.pdf",
+        year=2025,
+    )
+    paper_b = Paper(
+        title="B",
+        authors=None,
+        abstract=None,
+        arxiv_id=None,
+        pdf_path="/tmp/2502.11708v1.pdf",
+        year=None,
+    )
+    test_db.add(paper_a)
+    test_db.add(paper_b)
+    test_db.commit()
+
+    response = client.post("/api/papers/enrich", json={})
+    assert response.status_code == 200
+    test_db.refresh(paper_b)
+    assert paper_b.arxiv_id is None

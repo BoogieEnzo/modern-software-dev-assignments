@@ -100,6 +100,51 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/ -v
 
 ---
 
+## 元数据治理方案（下一步执行计划）
+
+目标：解决“本地论文标题/作者/年份大量空白、格式混乱、不一致”。
+
+### 执行原则
+1. **标识符优先**：先提取 `arxiv_id` / `doi`，优先信任官方源元数据。
+2. **规则清洗优先**：先做本地规则清洗，再考虑 LLM 兜底。
+3. **去重可选**：默认先做“补全 + 规范化”，去重作为可选阶段（可开关）。
+4. **可重复执行**：提供可重跑流程，不依赖手工一次性修复。
+
+### 分阶段实施
+1. **阶段 A（必做）**
+   - 从文件名与 PDF 文本提取 `arxiv_id` / 年份候选。
+   - 若有 `arxiv_id`，调用 ArXiv API 回填标准 `title/authors/year/abstract`。
+   - 新增字段：`metadata_source`（arxiv/pdf/manual）、`metadata_confidence`（high/medium/low）。
+2. **阶段 B（必做）**
+   - 规则清洗：过长标题截断、反向/乱码模式识别、作者标准分隔。
+   - 前端默认展示高置信度，低置信度可标注“待完善”。
+3. **阶段 C（可选）**
+   - 去重（按 `arxiv_id` 强去重，按标准化标题弱去重）。
+4. **阶段 D（兜底）**
+   - 仅对低置信度记录，使用 Ollama 提取候选标题/作者，再人工确认写回。
+
+### 本轮确认后的执行顺序（先文档后执行）
+1. 先备份数据库：`cp data/app.db data/app.db.bak.$(date +%s)`。
+2. 执行第一阶段补全：调用 `POST /api/papers/enrich`（只补全和规范化，不做物理删除）。
+3. 增加软去重逻辑（可开关）：
+   - 强规则：`arxiv_id` 一致 -> 标记重复候选。
+   - 弱规则：标准化标题一致 -> 标记重复候选。
+   - 默认不删除，只在前端默认隐藏重复候选。
+4. 前端加“显示重复候选”开关，默认关闭。
+5. 跑全量测试 + E2E，再人工抽样核验列表质量。
+
+### 缓存策略（避免旧数据与旧页面）
+- 静态资源缓存：保留 `?v=...` 版本戳 + no-cache 响应头，避免浏览器继续使用旧 JS/CSS。
+- API 数据缓存：`/api/*` 默认不缓存，页面每次请求读实时 DB。
+- 结论：当前策略下，页面出现旧数据通常不是缓存，而是 DB 中仍有历史脏记录或 enrich 尚未执行。
+
+### 验收标准
+- 论文列表中 `title/authors/year` 空白率显著下降。
+- 同一批 PDF 重跑流程后结果稳定（幂等）。
+- API 响应增加来源与置信度信息，便于前端分层展示。
+
+---
+
 ## 代码规范
 
 ### SQLAlchemy 2.0
@@ -136,6 +181,7 @@ class Config:
 | GET | `/api/papers/` | 论文列表 |
 | GET | `/api/papers/{id}` | 论文详情 |
 | POST | `/api/papers/download` | 从ArXiv下载 |
+| POST | `/api/papers/enrich` | 批量补全与规范化本地元数据（第一阶段） |
 | GET | `/api/papers/{id}/summarize` | AI摘要 |
 | GET | `/api/papers/{id}/code` | GitHub仓库 |
 | GET | `/api/search/?q=` | ArXiv在线搜索 |
@@ -171,6 +217,7 @@ class Config:
 1. **Ollama 依赖**: AI摘要需要本地运行 `ollama serve`
 2. **PDF 元数据**: 部分PDF标题解析不完整 (PDF解析库限制)
 3. **ArXiv API**: 网络不稳定时可能超时
+4. **复杂问答超时**: 长问题/长上下文时，后端与 Ollama 通信可能超时，前端显示 `Ollama failed to respond`
 
 ---
 
@@ -187,3 +234,23 @@ python -m app.main  # 自动重建
 # 查看API文档
 curl http://localhost:8001/docs
 ```
+
+### Ollama 超时排查（针对复杂问题 503）
+
+现象：日志出现 `Error in chat: timed out`，随后 `POST /api/chat` 返回 503。  
+原因：后端请求 Ollama 有超时阈值，复杂问题（长 prompt / 长上下文）更容易超过阈值，并非服务一定宕机。
+
+建议排查顺序：
+1. 先验证 Ollama 是否活着：
+   ```bash
+   curl -s http://localhost:11434/api/tags
+   ollama ps
+   ```
+2. 用同模型做基准测试：
+   ```bash
+   ollama run gemma3:1b "用三句话解释 Linux kernel scheduler"
+   ```
+3. 若复杂问题超时频繁：
+   - 缩短提问长度（先让模型列提纲，再分步追问）。
+   - 降低上下文长度（论文对话先问局部章节）。
+   - 切换更快模型或提高后端超时阈值（后续代码改造项）。

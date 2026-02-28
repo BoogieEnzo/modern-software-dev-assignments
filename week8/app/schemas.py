@@ -62,3 +62,14 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+class EnrichRequest(BaseModel):
+    limit: Optional[int] = None
+
+
+class EnrichResponse(BaseModel):
+    processed: int
+    updated: int
+    skipped: int
+    failed: int

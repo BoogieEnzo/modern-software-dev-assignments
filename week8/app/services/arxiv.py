@@ -52,3 +52,19 @@ class ArxivService:
             "pdf_path": filepath,
             "year": result.published.year if result.published else None,
         }
+
+    def get_metadata(self, arxiv_id: str) -> dict | None:
+        """Fetch metadata from ArXiv by ID without downloading PDF."""
+        try:
+            client = arxiv.Client()
+            search = arxiv.Search(id_list=[arxiv_id])
+            result = list(client.results(search))[0]
+            return {
+                "arxiv_id": arxiv_id,
+                "title": result.title,
+                "authors": ", ".join([a.name for a in result.authors]),
+                "abstract": result.summary,
+                "year": result.published.year if result.published else None,
+            }
+        except Exception:
+            return None

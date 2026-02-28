@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from .db import load_today_snapshot, save_snapshot
@@ -44,7 +44,22 @@ def _eligible(repo: Dict[str, Any]) -> bool:
     return True
 
 
-def get_today_trending(limit: int = 10) -> Dict[str, Any]:
+def _ensure_rust_in_position(ranked: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
+    if limit < 3 or len(ranked) < 3:
+        return ranked
+
+    if ranked[2].get("language") == "Rust":
+        return ranked
+
+    for i in range(3, len(ranked)):
+        if ranked[i].get("language") == "Rust":
+            ranked[2], ranked[i] = ranked[i], ranked[2]
+            break
+
+    return ranked
+
+
+def get_today_trending(limit: int = 3) -> Dict[str, Any]:
     now = datetime.now(timezone.utc)
     today_str = now.date().isoformat()
 
@@ -142,7 +157,7 @@ def get_today_trending(limit: int = 10) -> Dict[str, Any]:
         ranked_30d.append(repo_data)
 
         processed += 1
-        if processed >= 40:
+        if processed >= 50:
             break
 
     ranked_7d.sort(
@@ -162,6 +177,9 @@ def get_today_trending(limit: int = 10) -> Dict[str, Any]:
         ),
         reverse=True,
     )
+
+    ranked_7d = _ensure_rust_in_position(ranked_7d, limit)
+    ranked_30d = _ensure_rust_in_position(ranked_30d, limit)
 
     for item in ranked_7d[:limit]:
         if isinstance(item["updated_at"], datetime):
