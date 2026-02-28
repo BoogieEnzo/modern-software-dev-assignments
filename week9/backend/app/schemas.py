@@ -31,6 +31,7 @@ class AgentRepo(BaseModel):
     forks: int
     created_at: str
     topics: List[str] = []
+    reason: str = ""
 
 
 class TrendingResponse(BaseModel):

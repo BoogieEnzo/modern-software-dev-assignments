@@ -114,6 +114,7 @@ def _fetch_agent_repos(client: GitHubClient, limit: int = 5) -> List[Dict[str, A
             "forks": int(repo.get("forks_count", 0)),
             "created_at": created_at.strftime("%Y-%m-%d"),
             "topics": repo.get("topics", []) or [],
+            "reason": build_agent_reason(repo),
         }
         agent_list.append(agent_data)
 
@@ -241,6 +242,35 @@ def build_reason(repo: Dict[str, Any], weekly_star_gain: int, monthly_star_gain:
         return f"累计{stars_today}星，{language}社区关注度高"
 
 
+def build_agent_reason(repo: Dict[str, Any]) -> str:
+    """Generate recommendation reason for Agent OS repos based on available metrics."""
+    language = repo.get("language") or "该技术栈"
+    stars = int(repo.get("stargazers_count") or repo.get("stars_today") or 0)
+    topics = repo.get("topics") or []
+
+    topic_highlights = {
+        "mcp": "支持MCP协议",
+        "ai-agents": "AI Agent框架",
+        "agent-framework": "Agent基础设施",
+        "llm": "LLM驱动",
+        "operating-system": "Agent操作系统",
+        "openclaw": "OpenClaw生态",
+        "claude-code": "Claude Code生态",
+        "claude-skills": "Claude Skills集成",
+    }
+    matched = [v for k, v in topic_highlights.items() if k in topics]
+    tag = f"，{matched[0]}" if matched else ""
+
+    if stars > 10000:
+        return f"🔥 {language}新兴Agent项目，累计{stars}星{tag}，社区高度关注！"
+    elif stars > 3000:
+        return f"🔥 {language}热门Agent项目，短期冲上{stars}星{tag}，值得关注！"
+    elif stars > 500:
+        return f"{language}领域Agent新星，已获{stars}星{tag}"
+    else:
+        return f"{language}新兴Agent项目{tag}，潜力值得关注"
+
+
 def _eligible(repo: Dict[str, Any]) -> bool:
     if repo.get("private") or repo.get("archived"):
         return False
@@ -282,6 +312,10 @@ def get_today_trending(limit: int = 5) -> Dict[str, Any]:
 
         # Return ISO with +08:00 so frontend can show 北京时间 correctly
         repos_agent = cached.get("repos_agent", [])[:limit]
+        # Backfill reason for agent repos saved before we added the field
+        for r in repos_agent:
+            if not r.get("reason"):
+                r["reason"] = build_agent_reason(r)
         if not repos_agent:
             try:
                 client = GitHubClient()

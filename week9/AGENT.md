@@ -1,5 +1,9 @@
 # Week9 Agent 开发任务线
 
+本目录三份文档：**README.md**（运行/测试/环境）、**knowledge.md**（项目知识库、数据来源、推荐理由）、**AGENT.md**（本文件：任务线与已完成/待办）。
+
+---
+
 ## 远程开发环境
 
 **架构**: Linux 服务器 + SSH + Mac Chrome 测试
@@ -27,24 +31,24 @@
 - [x] SQLite 数据库配置
 
 ### 核心功能
-- [x] RepoSnapshot 模型（repos_7d_json, repos_30d_json）
+- [x] RepoSnapshot 模型（repos_7d_json, repos_30d_json, repos_agent_json）
 - [x] save_snapshot / load_today_snapshot 函数
 - [x] GET /api/trending/today 接口（懒加载缓存）
 - [x] 7天热门榜单（按 weekly_star_gain 排序）
 - [x] 30天热门榜单（按 monthly_star_gain 排序）
-- [x] 第3位强制 Rust 项目
+- [x] 第三列 Agent OS 新兴项目（近 30 天创建、agent 相关）
+- [x] 第3位强制 Rust 项目（7d/30d/Agent 三列）
 - [x] 入榜规则：公开、非 archived、非敏感、stars >= 200
+- [x] 推荐理由：7d/30d 用 `build_reason()`，Agent 用 `build_agent_reason()`，规则模板生成（无 LLM）；缓存 Agent 缺 reason 时接口回填
 
 ### 前端
-- [x] 两列布局：左 7天热门，右 30天热门
-- [x] 卡片展示：仓库名、描述，语言、stars、7天/30天增星、forks、创建日期、推荐理由
+- [x] 三列布局：7天热门 | 30天热门 | Agent OS 新兴项目
+- [x] 卡片展示：仓库名、描述、语言、stars、7天/30天增星、forks、创建日期、**💡 推荐理由**
+- [x] Agent 列额外展示 topics
 - [x] 加载中/空数据/失败态处理
 
-### 功能改动
-- [ ] **F001** - 榜单数量从 3 改成 5
-
 ### 文档
-- [x] knowledge.md - 项目知识库
+- [x] knowledge.md - 项目知识库（含推荐理由说明、数据来源、API）
 
 ---
 
@@ -54,25 +58,7 @@
 - [ ] **F001** - 榜单数量从 3 改成 5
 
 ### 调试与运维
-- [ ] **T007** - 新增 `POST /api/internal/snapshot/run` 手动触发抓取接口
-
-### 观测性
-- [ ] **T019** - 增加结构化日志（抓取耗时、候选数量、过滤数量）
-- [ ] **T021** - 失败分级：限流(429) / 网络错误 / 空结果
-- [x] 两列布局：左 7天热门，右 30天热门
-- [x] 卡片展示：仓库名、描述、语言、stars、7天/30天增星、forks、创建日期、推荐理由
-- [x] 加载中/空数据/失败态处理
-
-### 文档
-- [x] knowledge.md - 项目知识库
-
----
-
-## 待完成（有意义的任务）
-
-### 调试与运维
-- [ ] **T007** - 新增 `POST /api/internal/snapshot/run` 手动触发抓取接口
-  - 用途：手动刷新缓存，不用等第二天
+- [ ] **T007** - 新增 `POST /api/internal/snapshot/run` 手动触发抓取接口（用途：手动刷新缓存）
 
 ### 测试（重要）
 - [ ] **T011** - 测试快照读写功能
@@ -101,7 +87,7 @@
 | T020 超时重试 | 代码已有 timeout |
 | T022 失败文案 | 前端已统一 |
 | T023 字段展示 | 已完成 |
-| T024 推荐理由 | 已有模板生成 |
+| T024 推荐理由 | 7d/30d/Agent 三列均已用模板生成推荐理由 |
 
 ---
 

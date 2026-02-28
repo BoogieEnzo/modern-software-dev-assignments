@@ -9,7 +9,7 @@ This file provides context for AI agents working in this repository.
 - **Course**: CS146S: The Modern Software Developer (Stanford)
 - **Stack**: FastAPI + SQLite (SQLAlchemy) + vanilla frontend
 - **Python**: 3.10+
-- **Active Week**: Week 4 (and others: week5, week6, week8)
+- **Active Week**: Week 4 (and others: week5, week6, week8, **week9**)
 
 ---
 

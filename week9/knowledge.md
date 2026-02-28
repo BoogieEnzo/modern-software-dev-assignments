@@ -1,5 +1,9 @@
 # Repo Daily Brief - 项目知识库
 
+本目录三份文档：**README.md**（运行/测试/环境）、**knowledge.md**（本文件：数据来源、API、推荐理由）、**AGENT.md**（开发任务线与已完成/待办）。
+
+---
+
 ## 项目是什么？
 
 **Repo Daily Brief** 是一个 GitHub 趋势仓库每日简报页面。
@@ -28,8 +32,8 @@
 │  2. xxx/yyy          │  2. xxx/yyy           │  2. xxx/yyy           │
 │     语言: Python         │     语言: Go              │     语言: Python       │
 │     ⭐ 26000              │     ⭐ 20000              │     ⭐ 300              │
-│     🔥 +271/7d            │     📈 +20000/30d        │                        │
-│                       │                        │                        │
+│     🔥 +271/7d            │     📈 +20000/30d        │     💡 推荐理由        │
+│     💡 推荐理由           │     💡 推荐理由          │                        │
 │  3. xxx/yyy (Rust)   │  3. xxx/yyy (Rust)    │  3. xxx/yyy (Rust)   │
 └───────────────────────┴───────────────────────┴───────────────────────┘
 ```
@@ -39,7 +43,7 @@
 - 描述
 - 语言、当前 star 数、7天/30天增长、fork 数
 - 创建日期
-- 推荐理由
+- **💡 推荐理由**（三列均有，规则模板生成，不调用任何 LLM）
 
 Agent OS 额外显示：
 - GitHub topics 标签
@@ -113,8 +117,10 @@ http://localhost:8002
 - **GitHub REST API**: 搜索热门仓库 + 获取 star 事件时间线
 - **搜索关键词**:
   - 7天/30天热门：按 star 数量排序
-  - Agent OS（含 **agent OS**、**agent operating system**）：实现里使用 `agent OR "agent OS" OR "agent operating system" OR agentic OR "tool use"`。GitHub 搜索限制：**最多 5 个 OR/AND/NOT**，否则 422；故未加 "agent operating systems" 等更多词。
+  - Agent OS（agent / agent operating system 相关项目）：查询用 `agent in:name,description,topics`（含 stars>=100、近 30 天创建）。
+  - **踩坑**：GitHub 搜索的括号 OR 写法 `(A OR B OR C)` 会静默返回 0 结果；另外超过 5 个 OR/AND/NOT 会 422。所以改用单关键词 + `in:` 限定范围。
   - 若缓存里 `repos_agent` 为空，接口会尝试实时再拉一次并写回缓存，避免一直显示「暂无Agent相关项目」。
+- **推荐理由**: 纯规则生成（不调用 LLM）。7d/30d 根据 `weekly_star_gain` / `monthly_star_gain` 阈值选模板（如「近7天暴涨 X 星」「近30天增长 X 星」）；Agent OS 根据 `stars_today` 与 topics（如 mcp、ai-agents）生成一句（如「TypeScript 热门 Agent 项目，短期冲上 5000 星，支持 MCP 协议」）。从缓存读出的旧 Agent 数据若缺 `reason`，接口会现场用 `build_agent_reason()` 回填。
 - **缓存策略**: 当天数据存储在 SQLite，4小时自动刷新
 - **30 天数据保留**: 超过 30 天的快照自动清理
 
@@ -165,11 +171,12 @@ week9/
 ## 功能特性
 
 1. **3 列布局**: 7天热门 | 30天热门 | Agent OS 新兴项目
-2. **Rust 优先级**: 第 3 位优先展示 Rust 项目
-3. **后台刷新**: 每 4 小时自动更新数据
-4. **北京时间**: 显示北京时间
-5. **响应式**: 支持桌面/平板/手机
-6. **GitHub Token**: 设置后避免 API 限流
+2. **💡 推荐理由**: 三列均展示一句推荐理由，由后端规则模板生成（`build_reason` / `build_agent_reason`），无 LLM 调用；缓存中的 Agent 数据缺理由时会自动回填
+3. **Rust 优先级**: 第 3 位优先展示 Rust 项目
+4. **后台刷新**: 每 4 小时自动更新数据
+5. **北京时间**: 显示北京时间
+6. **响应式**: 支持桌面/平板/手机
+7. **GitHub Token**: 设置后避免 API 限流
 
 ---
 
@@ -181,7 +188,7 @@ week9/
 | 30天热门 | HKUDS/nanobot, sipeed/picoclaw, zeroclaw-labs/zeroclaw |
 | Agent OS 新兴项目 | 与 agent / AI agent / agent framework / **agent OS** / **agent operating system(s)** 等主题相关的近期仓库（如 agiresearch/AIOS、Agent-OS、zeroclaw 等） |
 
-第三列「🤖 Agent OS 新兴项目」对应 API 的 `repos_agent`；若接口未返回或拉取失败，前端会显示「暂无Agent相关项目」或「加载中...」。
+第三列「🤖 Agent OS 新兴项目」对应 API 的 `repos_agent`，每条也带 `reason` 推荐理由；若接口未返回或拉取失败，前端会显示「暂无Agent相关项目」或「加载中...」。
 
 ---
 

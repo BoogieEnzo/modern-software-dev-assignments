@@ -1,4 +1,8 @@
-# AGENTS.md — Week 8 (OS Paper Hub)
+# AGENT.md — Week 8 (OS Paper Hub)
+
+本目录三份文档：**README.md**（运行/测试/环境）、**knowledge.md**（项目知识库、数据流、结构）、**AGENT.md**（本文件：约定、API、Ollama、测试与调试）。
+
+---
 
 ## 项目身份
 

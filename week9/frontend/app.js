@@ -99,6 +99,7 @@ function renderAgentCards(repos, cardsEl, stateEl) {
         <div class="topics">
           ${(repo.topics || []).map(t => `<span class="topic">${t}</span>`).join("")}
         </div>
+        ${repo.reason ? `<p class="reason">💡 ${repo.reason}</p>` : ""}
       </article>
     `
     )

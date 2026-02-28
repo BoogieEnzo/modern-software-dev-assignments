@@ -1,59 +1,42 @@
-# Week9 Repo Trends Explorer
+# Week9 Repo Daily Brief
 
-每日简报页面：展示 GitHub Top 3 趋势仓库（按 7 天累计增星）。
+GitHub 趋势仓库每日简报：三列展示 **7 天热门增长**、**30 天热门增长**、**Agent OS 新兴项目**，每张卡片带 💡 推荐理由（规则模板生成，无 LLM）。
 
-## Run
+## 运行
 
 ```bash
+cd week9
 pip install -r requirements.txt
 make run
 ```
 
-Open: http://localhost:8002
+浏览器打开: http://localhost:8002
 
-## Remote Development (SSH + Browser)
+## 远程开发 (SSH + 浏览器)
 
-This project runs on a remote Linux server. You access it via SSH from your Mac and test through Chrome.
+服务绑定 `0.0.0.0:8002`，可从 Mac 直接访问服务器 IP，或用 SSH 隧道：
 
-### Workflow
+| 操作 | 命令 |
+|------|------|
+| 启动服务 | `make run` |
+| 查看本机 IP | `hostname -I \| awk '{print $1}'` |
+| 访问 | `http://<服务器IP>:8002` 或隧道后 `http://localhost:8002` |
+| 隧道 (Mac) | `ssh -L 8002:localhost:8002 fengde@<服务器IP>` |
+| 释放端口 | `lsof -ti:8002 \| xargs kill -9` |
 
-1. **Start the server on the remote machine:**
-   ```bash
-   make run
-   ```
-
-2. **Access from your Mac's Chrome:**
-   - The server binds to `0.0.0.0:8002`
-   - Open: `http://<server-ip>:8002`
-   - Example: `http://192.168.1.100:8002`
-
-3. **Check server IP:**
-   ```bash
-   hostname -I | awk '{print $1}'
-   ```
-
-### Port Notes
-
-- Default port: **8002** (avoid conflict with 8000)
-- If port is in use:
-  ```bash
-  lsof -ti:8002 | xargs kill -9
-  ```
+## 测试
 
 ```bash
-pip install -r requirements.txt
-make run
-```
-
-Open: http://localhost:8000
-
-## Test
-
-```bash
-pip install -r requirements.txt
 make test
+# 或
+PYTHONPATH=. pytest backend/tests/ -v
 ```
 
-## Env
+## 环境变量
 
-- `GITHUB_TOKEN` (optional, recommended to avoid low API rate limits)
+- **GITHUB_TOKEN**（可选，建议设置以避免 API 限流）
+
+## 文档
+
+- **knowledge.md** — 项目知识库（数据来源、API、推荐理由、缓存策略）
+- **AGENT.md** — 开发任务线与已完成/待办
