@@ -62,6 +62,35 @@ def test_list_papers_hides_duplicates_by_default(client, test_db):
     assert len(response_all.json()) == 2
 
 
+def test_list_papers_hides_noisy_rows_by_default(client, test_db):
+    """Noisy OCR-like rows should be hidden unless include_noisy=true."""
+    noisy = Paper(
+        title="Analysis of Docker Security ThanhBui AaltoUniversitySchoolofScience thanh.bui@aalto.fi Abstract",
+        authors=None,
+        pdf_path="/tmp/noisy.pdf",
+        year=None,
+    )
+    clean = Paper(
+        title="Analysis of Docker Security",
+        authors="Thanh Bui",
+        pdf_path="/tmp/clean.pdf",
+        year=2015,
+    )
+    test_db.add(noisy)
+    test_db.add(clean)
+    test_db.commit()
+
+    response = client.get("/api/papers/")
+    assert response.status_code == 200
+    papers = response.json()
+    assert len(papers) == 1
+    assert papers[0]["title"] == "Analysis of Docker Security"
+
+    response_all = client.get("/api/papers/?include_noisy=true")
+    assert response_all.status_code == 200
+    assert len(response_all.json()) == 2
+
+
 def test_get_paper_by_id(client, test_db):
     """Test getting a specific paper by ID."""
     paper = Paper(title="Test Paper", authors="Test Author", pdf_path="/test/paper.pdf")

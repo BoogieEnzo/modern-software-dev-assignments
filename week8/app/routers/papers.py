@@ -67,9 +67,15 @@ def _looks_low_quality_title(title: str | None) -> bool:
         return True
     if ARXIV_ID_RE.fullmatch(title):
         return True
+    token_count = len(title.split())
+    if token_count > 28:
+        return True
     if len(title) > 220:
         return True
     if "arXiv:" in title or "viXra" in title:
+        return True
+    lower = title.lower()
+    if " abstract" in lower and ("@" in title or "department of" in lower):
         return True
     return False
 
@@ -83,12 +89,18 @@ def _canonical_title_key(title: str | None) -> str | None:
 
 
 @router.get("/", response_model=List[PaperResponse])
-def list_papers(include_duplicates: bool = False, db: Session = Depends(get_db)):
-    """List local papers; hide duplicates by default."""
+def list_papers(
+    include_duplicates: bool = False,
+    include_noisy: bool = False,
+    db: Session = Depends(get_db),
+):
+    """List local papers; hide duplicates/noisy records by default."""
     papers = db.query(Paper).order_by(Paper.created_at.desc()).all()
     result = []
     seen_keys: set[str] = set()
     for paper in papers:
+        if not include_noisy and _looks_low_quality_title(paper.title):
+            continue
         if not include_duplicates:
             dedupe_key = None
             if paper.arxiv_id:

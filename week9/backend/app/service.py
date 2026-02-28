@@ -59,7 +59,7 @@ def _ensure_rust_in_position(ranked: List[Dict[str, Any]], limit: int) -> List[D
     return ranked
 
 
-def get_today_trending(limit: int = 3) -> Dict[str, Any]:
+def get_today_trending(limit: int = 5) -> Dict[str, Any]:
     now = datetime.now(timezone.utc)
     today_str = now.date().isoformat()
 
