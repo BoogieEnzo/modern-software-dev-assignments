@@ -33,6 +33,35 @@ def test_list_papers_with_data(client, test_db):
     assert papers[0]["is_favorite"] is False
 
 
+def test_list_papers_hides_duplicates_by_default(client, test_db):
+    """List endpoint should hide duplicates unless include_duplicates=true."""
+    p1 = Paper(
+        title="Analysis of Docker Security",
+        authors="Author A",
+        pdf_path="/tmp/a1.pdf",
+        arxiv_id=None,
+        year=2014,
+    )
+    p2 = Paper(
+        title="Analysis of Docker Security",
+        authors="Author B",
+        pdf_path="/tmp/a2.pdf",
+        arxiv_id=None,
+        year=2014,
+    )
+    test_db.add(p1)
+    test_db.add(p2)
+    test_db.commit()
+
+    response = client.get("/api/papers/")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+    response_all = client.get("/api/papers/?include_duplicates=true")
+    assert response_all.status_code == 200
+    assert len(response_all.json()) == 2
+
+
 def test_get_paper_by_id(client, test_db):
     """Test getting a specific paper by ID."""
     paper = Paper(title="Test Paper", authors="Test Author", pdf_path="/test/paper.pdf")

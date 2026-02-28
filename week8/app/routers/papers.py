@@ -74,12 +74,33 @@ def _looks_low_quality_title(title: str | None) -> bool:
     return False
 
 
+def _canonical_title_key(title: str | None) -> str | None:
+    title = _normalize_title(title)
+    if not title:
+        return None
+    key = re.sub(r"[^a-z0-9]+", "", title.lower())
+    return key or None
+
+
 @router.get("/", response_model=List[PaperResponse])
-def list_papers(db: Session = Depends(get_db)):
-    """List all papers."""
+def list_papers(include_duplicates: bool = False, db: Session = Depends(get_db)):
+    """List local papers; hide duplicates by default."""
     papers = db.query(Paper).order_by(Paper.created_at.desc()).all()
     result = []
+    seen_keys: set[str] = set()
     for paper in papers:
+        if not include_duplicates:
+            dedupe_key = None
+            if paper.arxiv_id:
+                dedupe_key = f"arxiv:{paper.arxiv_id.lower()}"
+            else:
+                title_key = _canonical_title_key(paper.title)
+                if title_key:
+                    dedupe_key = f"title:{title_key}"
+            if dedupe_key and dedupe_key in seen_keys:
+                continue
+            if dedupe_key:
+                seen_keys.add(dedupe_key)
         paper_dict = PaperResponse.model_validate(paper)
         paper_dict.is_favorite = False
         result.append(paper_dict)
