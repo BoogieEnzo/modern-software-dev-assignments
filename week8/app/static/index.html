@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS Paper Hub - 论文知识库</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>📚 OS Paper Hub</h1>
+            <p>个人操作系统论文知识库 + AI 辅助理解</p>
+        </div>
+    </header>
+    
+    <nav class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="papers">
+                <span>📄</span> 论文列表
+            </button>
+            <button class="tab" data-tab="search">
+                <span>🔍</span> 搜索 ArXiv
+            </button>
+            <button class="tab" data-tab="favorites">
+                <span>⭐</span> 收藏
+            </button>
+        </div>
+    </nav>
+    
+    <main class="container">
+        <!-- Papers Tab -->
+        <section id="papers-tab" class="tab-content active">
+            <div class="toolbar">
+                <input type="text" id="search-input" placeholder="🔍 搜索论文标题、作者...">
+                <button id="refresh-btn" class="btn-secondary">🔄 刷新</button>
+            </div>
+            <div id="papers-list" class="papers-grid">
+                <div class="loading">正在加载论文...</div>
+            </div>
+        </section>
+        
+        <!-- Search Tab -->
+        <section id="search-tab" class="tab-content">
+            <div class="search-box">
+                <input type="text" id="arxiv-search-input" placeholder="输入关键词搜索 ArXiv 论文...">
+                <button id="arxiv-search-btn" class="btn-primary">🔍 搜索</button>
+            </div>
+            <div id="search-results" class="papers-grid"></div>
+        </section>
+        
+        <!-- Favorites Tab -->
+        <section id="favorites-tab" class="tab-content">
+            <h2 style="margin-bottom: 20px; font-size: 1.5rem;">⭐ 我的收藏</h2>
+            <div id="favorites-list" class="papers-grid">
+                <div class="loading">正在加载收藏...</div>
+            </div>
+        </section>
+    </main>
+    
+    <!-- Paper Detail Modal -->
+    <div id="paper-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="paper-detail"></div>
+        </div>
+    </div>
+    
+    <script src="/static/app.js"></script>
+</body>
+</html>

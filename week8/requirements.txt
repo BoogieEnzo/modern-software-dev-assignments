@@ -1,0 +1,8 @@
+fastapi>=0.133
+uvicorn
+sqlalchemy>=2.0
+pydantic>=2.0
+arxiv
+paperswithcode-client
+pdfplumber
+httpx

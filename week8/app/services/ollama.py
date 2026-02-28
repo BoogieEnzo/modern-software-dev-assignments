@@ -1,0 +1,55 @@
+"""Ollama service for AI summarization."""
+
+import httpx
+import os
+from typing import Optional
+
+
+class OllamaService:
+    def __init__(self, base_url: str = "http://localhost:11434"):
+        self.base_url = base_url
+        self.model = os.environ.get("OLLAMA_MODEL", "gemma3:1b")
+
+    def _get_client(self, timeout: float = 5) -> httpx.Client:
+        """Get httpx client without proxy for localhost."""
+        return httpx.Client(timeout=timeout, trust_env=False)
+
+    def is_available(self) -> bool:
+        """Check if Ollama is running."""
+        try:
+            client = self._get_client()
+            response = client.get(f"{self.base_url}/api/tags")
+            client.close()
+            return response.status_code == 200
+        except:
+            return False
+
+    def generate_summary(self, paper_title: str, paper_abstract: str) -> Optional[str]:
+        """Generate AI summary for a paper."""
+        if not self.is_available():
+            return None
+
+        prompt = f"""You are a research paper assistant. Please provide a brief summary (2-3 sentences) of this paper.
+
+Title: {paper_title}
+
+Abstract: {paper_abstract}
+
+Summary:"""
+
+        try:
+            client = self._get_client(timeout=60)
+            response = client.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                },
+            )
+            client.close()
+            if response.status_code == 200:
+                return response.json().get("response", "").strip()
+        except Exception as e:
+            print(f"Error generating summary: {e}")
+        return None
