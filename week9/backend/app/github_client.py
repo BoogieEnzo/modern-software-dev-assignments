@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -22,12 +22,16 @@ class GitHubClient:
     def search_candidate_repos(
         self,
         page_size: int = 50,
-        sort: str = "updated",
+        sort: str = "stars",
         order: str = "desc",
         page: int = 1,
+        created_days_ago: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        # Search repositories with baseline stars. Sort is configurable for fallback.
-        query = "stars:>=200 archived:false"
+        if created_days_ago:
+            created_date = (datetime.now(timezone.utc) - timedelta(days=created_days_ago)).date()
+            query = f"stars:>=200 archived:false created:>={created_date}"
+        else:
+            query = "stars:>=200 archived:false"
         url = f"{self.base_url}/search/repositories"
         params = {
             "q": query,
@@ -43,8 +47,6 @@ class GitHubClient:
         return payload.get("items", [])
 
     def list_star_events(self, owner: str, repo: str, per_page: int = 100) -> List[Dict[str, Any]]:
-        # Uses stargazers API with timestamps to estimate stars 7 days ago.
-        # GitHub returns oldest stargazers on page 1, so we fetch from the tail pages.
         url = f"{self.base_url}/repos/{owner}/{repo}/stargazers"
         headers = dict(self.headers)
         headers["Accept"] = "application/vnd.github.star+json"
@@ -81,9 +83,11 @@ def parse_iso_datetime(raw: str) -> datetime:
     return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
 
 
-def compute_stars_7d_ago(stars_today: int, star_events: List[Dict[str, Any]], now: Optional[datetime] = None) -> int:
+def compute_stars_ago(
+    stars_today: int, star_events: List[Dict[str, Any]], days: int, now: Optional[datetime] = None
+) -> int:
     current_time = now or datetime.now(timezone.utc)
-    cutoff = current_time.timestamp() - (7 * 24 * 60 * 60)
+    cutoff = current_time.timestamp() - (days * 24 * 60 * 60)
 
     recent_stars = 0
     for event in star_events:
@@ -94,17 +98,27 @@ def compute_stars_7d_ago(stars_today: int, star_events: List[Dict[str, Any]], no
         if event_dt.timestamp() >= cutoff:
             recent_stars += 1
 
-    stars_7d_ago = max(stars_today - recent_stars, 0)
-    return stars_7d_ago
+    stars_ago = max(stars_today - recent_stars, 0)
+    return stars_ago
+
+
+def compute_stars_7d_ago(
+    stars_today: int, star_events: List[Dict[str, Any]], now: Optional[datetime] = None
+) -> int:
+    return compute_stars_ago(stars_today, star_events, 7, now)
+
+
+def compute_stars_30d_ago(
+    stars_today: int, star_events: List[Dict[str, Any]], now: Optional[datetime] = None
+) -> int:
+    return compute_stars_ago(stars_today, star_events, 30, now)
 
 
 def is_sensitive_repo(repo: Dict[str, Any]) -> bool:
-    # GitHub search API does not expose a dedicated sensitive-content flag.
-    # Apply a conservative keyword filter as proxy.
     text = " ".join(
         [
             repo.get("name", ""),
-            repo.get("description", "") or "",
+            repo.get("description") or "",
             " ".join(repo.get("topics", []) or []),
         ]
     ).lower()

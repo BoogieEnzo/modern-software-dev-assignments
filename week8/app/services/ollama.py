@@ -53,3 +53,34 @@ Summary:"""
         except Exception as e:
             print(f"Error generating summary: {e}")
         return None
+
+    def chat(self, message: str, context: Optional[str] = None) -> Optional[str]:
+        """Send a message to Ollama, optionally with context (e.g. paper full text)."""
+        if not self.is_available():
+            return None
+        prompt = message
+        if context:
+            prompt = f"""Use the following context to answer the user's question. If the context is empty or irrelevant, answer generally.
+
+Context:
+{context[:12000]}
+
+User question: {message}
+
+Answer:"""
+        try:
+            client = self._get_client(timeout=60)
+            response = client.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                },
+            )
+            client.close()
+            if response.status_code == 200:
+                return response.json().get("response", "").strip()
+        except Exception as e:
+            print(f"Error in chat: {e}")
+        return None

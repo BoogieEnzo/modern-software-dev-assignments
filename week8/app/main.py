@@ -1,33 +1,39 @@
 """FastAPI main application."""
 
+import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
 from .database import engine, SessionLocal
 from .models import Base
-from .routers import papers_router, favorites_router, search_router
+from .routers import papers_router, search_router, chat_router
 from .routers.papers import scan_papers_folder
+
+
+def _scan_papers_background():
+    """Run scan_papers_folder in a background thread so server can accept requests immediately."""
+    papers_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "papers")
+    papers_dir = os.path.abspath(papers_dir)
+    if not os.path.exists(papers_dir):
+        return
+    db = SessionLocal()
+    try:
+        scan_papers_folder(papers_dir, db)
+    finally:
+        db.close()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event handler."""
-    # Startup
     Base.metadata.create_all(bind=engine)
-    
-    db = SessionLocal()
-    try:
-        # papers is in the same directory as app/
-        papers_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "papers")
-        papers_dir = os.path.abspath(papers_dir)
-        if os.path.exists(papers_dir):
-            scan_papers_folder(papers_dir, db)
-    finally:
-        db.close()
-    
+    # Scan papers in background so first request is not blocked (scan can be slow with many PDFs)
+    t = threading.Thread(target=_scan_papers_background, daemon=True)
+    t.start()
     yield
 
 
@@ -48,10 +54,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def disable_static_cache_in_dev(request: Request, call_next):
+    """Avoid stale JS/CSS during local development."""
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # Include routers
 app.include_router(papers_router)
-app.include_router(favorites_router)
 app.include_router(search_router)
+app.include_router(chat_router)
 
 # Get directories - papers is at week8/papers (same level as app/)
 APP_DIR = os.path.dirname(os.path.abspath(__file__))  # app/
@@ -83,4 +100,5 @@ def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run(app, host="0.0.0.0", port=8001)

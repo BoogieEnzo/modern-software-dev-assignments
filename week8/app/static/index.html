@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OS Paper Hub - 论文知识库</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=2">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
 </head>
 <body>
@@ -14,51 +14,42 @@
             <p>个人操作系统论文知识库 + AI 辅助理解</p>
         </div>
     </header>
-    
+
     <nav class="container">
         <div class="tabs">
-            <button class="tab active" data-tab="papers">
-                <span>📄</span> 论文列表
-            </button>
-            <button class="tab" data-tab="search">
-                <span>🔍</span> 搜索 ArXiv
-            </button>
-            <button class="tab" data-tab="favorites">
-                <span>⭐</span> 收藏
-            </button>
+            <button class="tab active" data-tab="search"><span>🔍</span> 搜索 ArXiv</button>
+            <button class="tab" data-tab="papers"><span>📄</span> 论文列表</button>
         </div>
     </nav>
-    
+
     <main class="container">
-        <!-- Papers Tab -->
-        <section id="papers-tab" class="tab-content active">
-            <div class="toolbar">
-                <input type="text" id="search-input" placeholder="🔍 搜索论文标题、作者...">
-                <button id="refresh-btn" class="btn-secondary">🔄 刷新</button>
-            </div>
-            <div id="papers-list" class="papers-grid">
-                <div class="loading">正在加载论文...</div>
-            </div>
-        </section>
-        
-        <!-- Search Tab -->
-        <section id="search-tab" class="tab-content">
-            <div class="search-box">
+        <!-- Search Tab: 干净搜索框 -->
+        <section id="search-tab" class="tab-content active">
+            <div class="search-box standalone">
                 <input type="text" id="arxiv-search-input" placeholder="输入关键词搜索 ArXiv 论文...">
                 <button id="arxiv-search-btn" class="btn-primary">🔍 搜索</button>
             </div>
-            <div id="search-results" class="papers-grid"></div>
+            <div id="search-results" class="search-results-list"></div>
         </section>
-        
-        <!-- Favorites Tab -->
-        <section id="favorites-tab" class="tab-content">
-            <h2 style="margin-bottom: 20px; font-size: 1.5rem;">⭐ 我的收藏</h2>
-            <div id="favorites-list" class="papers-grid">
-                <div class="loading">正在加载收藏...</div>
+
+        <!-- Papers Tab: 论文列表（一行一条）；全站对话固定右下角 -->
+        <section id="papers-tab" class="tab-content">
+            <div class="papers-section">
+                <div id="papers-list" class="papers-table-wrap">
+                    <div class="loading">正在加载论文...</div>
+                </div>
+            </div>
+            <div class="station-chat-section station-chat-fixed">
+                <span class="station-chat-title">全站对话</span>
+                <div id="station-chat-messages" class="chat-messages"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="station-chat-input" placeholder="输入问题，与 Ollama 对话...">
+                    <button id="station-chat-send" class="btn-primary">发送</button>
+                </div>
             </div>
         </section>
     </main>
-    
+
     <!-- Paper Detail Modal -->
     <div id="paper-modal" class="modal">
         <div class="modal-content">
@@ -66,7 +57,7 @@
             <div id="paper-detail"></div>
         </div>
     </div>
-    
-    <script src="/static/app.js"></script>
+
+    <script src="/static/app.js?v=2"></script>
 </body>
 </html>

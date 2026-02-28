@@ -31,3 +31,19 @@ class PDFService:
             print(f"Error extracting metadata from {pdf_path}: {e}")
 
         return None
+
+    def extract_full_text(self, pdf_path: str) -> Optional[str]:
+        """Extract full text from PDF for LLM context."""
+        if not os.path.exists(pdf_path):
+            return None
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                parts = []
+                for page in pdf.pages:
+                    t = page.extract_text()
+                    if t:
+                        parts.append(t)
+                return "\n".join(parts).strip() or None
+        except Exception as e:
+            print(f"Error extracting full text from {pdf_path}: {e}")
+        return None

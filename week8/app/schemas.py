@@ -54,3 +54,11 @@ class ArxivSearchResult(BaseModel):
 
 class DownloadRequest(BaseModel):
     arxiv_id: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+
+
+class ChatResponse(BaseModel):
+    reply: str

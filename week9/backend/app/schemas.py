@@ -11,7 +11,9 @@ class TrendingRepo(BaseModel):
     language: Optional[str]
     stars_today: int
     stars_7d_ago: int
+    stars_30d_ago: int
     weekly_star_gain: int
+    monthly_star_gain: int
     forks: int
     updated_at: datetime
     reason: str
@@ -20,4 +22,5 @@ class TrendingRepo(BaseModel):
 class TrendingResponse(BaseModel):
     date: str
     generated_at: datetime
-    repos: List[TrendingRepo]
+    repos_7d: List[TrendingRepo]
+    repos_30d: List[TrendingRepo]

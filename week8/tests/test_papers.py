@@ -50,26 +50,84 @@ def test_get_paper_not_found(client, test_db):
     assert response.status_code == 404
 
 
-def test_paper_with_favorite(client, test_db):
-    """Test paper favorite status."""
-    from app.models import Favorite
+from unittest.mock import patch
 
-    paper = Paper(title="Test Paper", pdf_path="/test/paper.pdf")
+
+@patch("app.routers.papers.arxiv_service.download")
+def test_download_paper_success(mock_download, client, test_db):
+    """Test downloading a paper from ArXiv."""
+    mock_download.return_value = {
+        "arxiv_id": "2401.12345",
+        "title": "Test OS Paper",
+        "authors": "Alice, Bob",
+        "abstract": "An abstract.",
+        "pdf_path": "/papers/2401.12345.pdf",
+        "year": 2024,
+    }
+    response = client.post("/api/papers/download", json={"arxiv_id": "2401.12345"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Test OS Paper"
+    assert data["arxiv_id"] == "2401.12345"
+    mock_download.assert_called_once_with("2401.12345")
+
+
+def test_download_paper_duplicate(client, test_db):
+    """Test download when paper with same arxiv_id already exists."""
+    paper = Paper(
+        title="Existing Paper",
+        authors="Author",
+        pdf_path="/test/existing.pdf",
+        arxiv_id="2401.99999",
+    )
     test_db.add(paper)
     test_db.commit()
     test_db.refresh(paper)
 
-    # Add to favorites
-    fav = Favorite(paper_id=paper.id)
-    test_db.add(fav)
-    test_db.commit()
-
-    response = client.get(f"/api/papers/{paper.id}")
+    with patch("app.routers.papers.arxiv_service.download") as mock_download:
+        response = client.post("/api/papers/download", json={"arxiv_id": "2401.99999"})
     assert response.status_code == 200
-    assert response.json()["is_favorite"] == True
+    assert response.json()["id"] == paper.id
+    assert response.json()["title"] == "Existing Paper"
+    mock_download.assert_not_called()
 
 
-from unittest.mock import patch
+@patch("app.routers.papers.arxiv_service.download")
+def test_download_paper_failure(mock_download, client, test_db):
+    """Test download when ArXiv fails."""
+    mock_download.side_effect = Exception("Network error")
+    response = client.post("/api/papers/download", json={"arxiv_id": "2401.00000"})
+    assert response.status_code == 500
+    assert "Failed to download" in response.json()["detail"]
+
+
+@patch("app.routers.papers.pwc_service.get_repo")
+def test_get_code_returns_repo(mock_get_repo, client, test_db):
+    """Test GET /api/papers/{id}/code when repo is found."""
+    mock_get_repo.return_value = "https://github.com/example/os-paper"
+    paper = Paper(title="Some Kernel Paper", pdf_path="/test/paper.pdf")
+    test_db.add(paper)
+    test_db.commit()
+    test_db.refresh(paper)
+
+    response = client.get(f"/api/papers/{paper.id}/code")
+    assert response.status_code == 200
+    assert response.json()["repo"] == "https://github.com/example/os-paper"
+
+
+@patch("app.routers.papers.pwc_service.get_repo")
+def test_get_code_returns_none(mock_get_repo, client, test_db):
+    """Test GET /api/papers/{id}/code when no repo found."""
+    mock_get_repo.return_value = None
+    paper = Paper(title="Obscure Paper", pdf_path="/test/paper.pdf")
+    test_db.add(paper)
+    test_db.commit()
+    test_db.refresh(paper)
+
+    response = client.get(f"/api/papers/{paper.id}/code")
+    assert response.status_code == 200
+    assert response.json()["repo"] is None
+
 
 @patch("app.routers.papers.pdf_service.extract_metadata")
 @patch("app.routers.papers.glob.glob")

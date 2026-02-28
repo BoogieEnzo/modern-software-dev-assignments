@@ -1,6 +1,6 @@
 """Search API router."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from typing import List
 
 from ..services import ArxivService
@@ -19,4 +19,4 @@ def search_arxiv(q: str, max_results: int = 10):
         results = arxiv_service.search(q, max_results=max_results)
         return results
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Search failed: {e}")

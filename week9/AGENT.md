@@ -1,4 +1,32 @@
-# Week9 Agent 执行任务线
+#XS|# Week9 Agent 执行任务线
+#KM|
+#PZ|## 任务总览
+#RW|
+#BM|本项目目标：从"实时抓取"升级为"每日快照驱动"的稳定版本。
+#SY|
+#RR|---
+#XW|
+#MN|## 远程开发环境
+#SK|
+#BM|**架构**: Linux 服务器 + SSH + Mac Chrome 测试
+#XZ|
+#KM|### 常用命令
+#HV|
+#MM|- **启动服务**: `make run` → 监听 `0.0.0.0:8002`
+#XK|- **获取服务器 IP**: `hostname -I | awk '{print $1}'`
+#HB|- **终止端口**: `lsof -ti:8002 | xargs kill -9`
+#QT|- **Mac 访问**: `http://<server-ip>:8002`
+#HZ|
+#QM|### 注意事项
+#QM|- 端口使用 **8002**（避免与 8000 冲突）
+#PQ|- 服务绑定 `0.0.0.0` 以支持远程访问
+#GK|---
+#XW|
+#MN|## 环境搭建
+#SK|
+#MN|- [ ] **T001** - 修复 Python 环境：确认使用 Python 3.10+ 运行，确保 `make test` 能通过
+#BJ|- [ ] **T002** - 配置 SQLite 数据库连接，验证 `data/app.db` 可读写
+#BQ|
 
 ## 任务总览
 

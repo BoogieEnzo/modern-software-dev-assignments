@@ -6,11 +6,10 @@ from typing import List
 import os
 import glob
 import re
-import glob
 
 from ..database import get_db
-from ..models import Paper, Favorite
-from ..schemas import PaperResponse, ArxivSearchResult, DownloadRequest
+from ..models import Paper
+from ..schemas import PaperResponse, ArxivSearchResult, DownloadRequest, ChatRequest, ChatResponse
 from ..services import ArxivService, PapersWithCodeService, OllamaService, PDFService
 
 router = APIRouter(prefix="/api/papers", tags=["papers"])
@@ -26,16 +25,11 @@ pdf_service = PDFService()
 def list_papers(db: Session = Depends(get_db)):
     """List all papers."""
     papers = db.query(Paper).order_by(Paper.created_at.desc()).all()
-
-    # Check favorites
-    favorite_ids = {f.paper_id for f in db.query(Favorite).all()}
-
     result = []
     for paper in papers:
         paper_dict = PaperResponse.model_validate(paper)
-        paper_dict.is_favorite = paper.id in favorite_ids
+        paper_dict.is_favorite = False
         result.append(paper_dict)
-
     return result
 
 
@@ -47,9 +41,7 @@ def get_paper(paper_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Paper not found")
 
     response = PaperResponse.model_validate(paper)
-    favorite = db.query(Favorite).filter(Favorite.paper_id == paper_id).first()
-    response.is_favorite = favorite is not None
-
+    response.is_favorite = False
     return response
 
 
@@ -95,6 +87,39 @@ def get_code(paper_id: int, db: Session = Depends(get_db)):
         return {"repo": repo}
 
     return {"repo": None}
+
+
+@router.post("/{paper_id}/chat", response_model=ChatResponse)
+def paper_chat(paper_id: int, req: ChatRequest, db: Session = Depends(get_db)):
+    """Chat about a paper using its full PDF text. Paper must be downloaded locally."""
+    paper = db.get(Paper, paper_id)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    if not paper.pdf_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Paper has no local PDF. Download the paper first.",
+        )
+    if not os.path.exists(paper.pdf_path):
+        raise HTTPException(
+            status_code=400,
+            detail="PDF file not found. Download the paper first.",
+        )
+    if not ollama_service.is_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Ollama is not running. Please start Ollama to enable chat.",
+        )
+    full_text = pdf_service.extract_full_text(paper.pdf_path)
+    if not full_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not extract text from PDF.",
+        )
+    reply = ollama_service.chat(req.message, context=full_text)
+    if reply is None:
+        raise HTTPException(status_code=503, detail="Ollama failed to respond.")
+    return ChatResponse(reply=reply)
 
 
 @router.post("/download")
@@ -158,5 +183,4 @@ def scan_papers_folder(papers_dir: str, db: Session):
             year=year,
         )
         db.add(paper)
-
-    db.commit()
+        db.commit()  # commit per paper so SQLite write lock is released quickly; GET /api/papers/ can return without waiting

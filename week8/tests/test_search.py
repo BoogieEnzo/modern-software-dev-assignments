@@ -23,7 +23,7 @@ def test_search_arxiv_basic(mock_search, client):
     assert isinstance(results, list)
     assert len(results) > 0
     assert len(results) <= 5
-    mock_search.assert_called_with("distributed", 5)
+    mock_search.assert_called_with("distributed", max_results=5)
 
 
 @patch("app.routers.search.arxiv_service.search")
@@ -67,4 +67,14 @@ def test_search_arxiv_large_results(mock_search, client):
 
     results = response.json()
     assert len(results) <= 20
+
+
+@patch("app.routers.search.arxiv_service.search")
+def test_search_arxiv_returns_500_on_exception(mock_search, client):
+    """Test search when service raises - API returns 500 with detail."""
+    mock_search.side_effect = Exception("ArXiv timeout")
+    response = client.get("/api/search/?q=linux&max_results=5")
+    assert response.status_code == 500
+    assert "detail" in response.json()
+    assert "Search failed" in response.json()["detail"]
 

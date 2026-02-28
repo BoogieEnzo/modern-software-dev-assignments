@@ -136,7 +136,7 @@ export OLLAMA_MODEL=gemma3:1b
 
 ### 1. 启动服务
 
-服务已在运行中: http://localhost:8000
+默认端口 8001，访问 http://localhost:8001
 
 如果需要重启:
 ```bash
@@ -148,7 +148,7 @@ python -m app.main
 
 ### 2. 浏览器验证
 
-访问: **http://localhost:8000**
+访问: **http://localhost:8001**
 
 验证项目:
 1. **论文列表** - 应显示20篇预置论文
@@ -161,31 +161,61 @@ python -m app.main
 
 ```bash
 # 论文列表
-curl http://localhost:8000/api/papers/
+curl http://localhost:8001/api/papers/
 
 # 搜索ArXiv
-curl "http://localhost:8000/api/search?q=distributed systems&max_results=5"
+curl "http://localhost:8001/api/search?q=distributed systems&max_results=5"
 
 # 论文详情
-curl http://localhost:8000/api/papers/1
+curl http://localhost:8001/api/papers/1
 
 # 收藏列表
-curl http://localhost:8000/api/favorites/
+curl http://localhost:8001/api/favorites/
 
 # AI摘要 (需Ollama运行中)
-curl http://localhost:8000/api/papers/1/summarize
+curl http://localhost:8001/api/papers/1/summarize
 
 # GitHub代码
-curl http://localhost:8000/api/papers/1/code
+curl http://localhost:8001/api/papers/1/code
 ```
 
-### 4. Ollama 测试
+### 4. Ollama 启动与检查
 
-确保Ollama运行中:
+Ollama 与 week8 **是两个独立进程**：启动 `python -m app.main` **不会**自动启动 Ollama。要使用 AI 摘要/对话，必须先保证本机已有 Ollama 在跑（`ollama serve` 已执行过）。week8 只负责连 `http://localhost:11434` 调用 Ollama。
+
+Ollama 与 week8 同机（Linux 服务器），监听 `127.0.0.1:11434`。
+
+**先检查是否已在跑：**
 ```bash
-ollama list  # 查看可用模型
-ollama run gemma3:1b "Hello"  # 测试模型
+# 若 11434 已被占用，说明 Ollama 已在运行，无需再启动
+ss -tlnp | grep 11434
+# 或
+curl -s http://localhost:11434/api/tags
 ```
+若出现 `listen ... 127.0.0.1:11434` 或返回 JSON，则已在跑，直接执行 `ollama list` 和用 week8 即可。
+
+**若未在跑，再启动：**
+```bash
+ollama serve              # 前台（当前终端占着）
+# 或后台：
+nohup ollama serve > /tmp/ollama.log 2>&1 &
+```
+若执行 `ollama serve` 报错 `address already in use`，表示已在跑，不要重复启动。
+
+**验证与测试模型：**
+```bash
+ollama list                # 查看已拉取模型（如 gemma3:1b）
+ollama run gemma3:1b "Hello"   # 测试生成
+```
+
+### 5. 远程访问 (Mac 通过隧道访问 Linux 服务器)
+
+| 步骤 | 位置 | 操作 |
+|-----|------|------|
+| 启动服务 | 服务器 | `cd week8 && source .venv/bin/activate && python -m app.main` |
+| 建隧道 | Mac | `ssh -L 8001:localhost:8001 fengde@<服务器IP>`，保持会话 |
+| 浏览器 | Mac Chrome | `http://localhost:8001` |
+| 测试 | 服务器 | `cd week8 && PYTHONPATH=. .venv/bin/python -m pytest tests/ -v` |
 
 ---
 
