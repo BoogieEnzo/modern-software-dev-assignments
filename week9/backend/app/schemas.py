@@ -15,6 +15,7 @@ class TrendingRepo(BaseModel):
     weekly_star_gain: int
     monthly_star_gain: int
     forks: int
+    created_at: str
     updated_at: datetime
     reason: str
 

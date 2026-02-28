@@ -1,6 +1,5 @@
 """Tests for ArXiv Search API."""
 
-import pytest
 from unittest.mock import patch
 
 
@@ -59,14 +58,21 @@ def test_search_arxiv_empty_query(client):
 
 
 @patch("app.routers.search.arxiv_service.search")
-def test_search_arxiv_large_results(mock_search, client):
-    """Test search with large max_results."""
-    mock_search.return_value = [{"title": f"Paper {i}", "authors": "Author", "abstract": "Abstract", "arxiv_id": f"{i}", "pdf_path": ""} for i in range(20)]
-    response = client.get("/api/search/?q=linux&max_results=20")
+def test_search_arxiv_empty_query_does_not_call_service(mock_search, client):
+    """Empty query should short-circuit without calling ArXiv service."""
+    response = client.get("/api/search/?q=")
     assert response.status_code == 200
+    assert response.json() == []
+    mock_search.assert_not_called()
 
-    results = response.json()
-    assert len(results) <= 20
+
+@patch("app.routers.search.arxiv_service.search")
+def test_search_arxiv_default_max_results(mock_search, client):
+    """When max_results omitted, API should pass default 10."""
+    mock_search.return_value = []
+    response = client.get("/api/search/?q=linux")
+    assert response.status_code == 200
+    mock_search.assert_called_once_with("linux", max_results=10)
 
 
 @patch("app.routers.search.arxiv_service.search")

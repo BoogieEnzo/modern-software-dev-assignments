@@ -29,6 +29,17 @@ def test_station_chat_ollama_unavailable(mock_available, client):
     assert "detail" in response.json()
 
 
+@patch("app.routers.chat.ollama_service.chat")
+@patch("app.routers.chat.ollama_service.is_available")
+def test_station_chat_no_reply(mock_available, mock_chat, client):
+    """POST /api/chat returns 503 when Ollama gives no reply."""
+    mock_available.return_value = True
+    mock_chat.return_value = None
+    response = client.post("/api/chat", json={"message": "Hi"})
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Ollama failed to respond."
+
+
 # ---- Paper chat POST /api/papers/{id}/chat ----
 @patch("app.routers.papers.ollama_service.chat")
 @patch("app.routers.papers.ollama_service.is_available")
@@ -85,6 +96,23 @@ def test_paper_chat_no_pdf_or_not_downloaded(mock_extract, client, test_db):
     )
     assert response.status_code == 400
     mock_extract.assert_not_called()
+
+
+@patch("app.routers.papers.os.path.exists")
+def test_paper_chat_pdf_file_missing(mock_exists, client, test_db):
+    """POST /api/papers/{id}/chat returns 400 when pdf_path exists but file missing."""
+    mock_exists.return_value = False
+    paper = Paper(title="Missing PDF", pdf_path="/real/path/missing.pdf")
+    test_db.add(paper)
+    test_db.commit()
+    test_db.refresh(paper)
+
+    response = client.post(
+        f"/api/papers/{paper.id}/chat",
+        json={"message": "What?"},
+    )
+    assert response.status_code == 400
+    assert "PDF file not found" in response.json()["detail"]
 
 
 @patch("app.routers.papers.ollama_service.is_available")

@@ -1,7 +1,7 @@
 """Tests for Papers API."""
 
-import os
-import pytest
+from unittest.mock import patch
+
 from app.models import Paper
 
 
@@ -30,6 +30,7 @@ def test_list_papers_with_data(client, test_db):
     papers = response.json()
     assert len(papers) == 1
     assert papers[0]["title"] == "Test Paper"
+    assert papers[0]["is_favorite"] is False
 
 
 def test_get_paper_by_id(client, test_db):
@@ -42,15 +43,13 @@ def test_get_paper_by_id(client, test_db):
     response = client.get(f"/api/papers/{paper.id}")
     assert response.status_code == 200
     assert response.json()["title"] == "Test Paper"
+    assert response.json()["is_favorite"] is False
 
 
 def test_get_paper_not_found(client, test_db):
     """Test getting a non-existent paper."""
     response = client.get("/api/papers/99999")
     assert response.status_code == 404
-
-
-from unittest.mock import patch
 
 
 @patch("app.routers.papers.arxiv_service.download")
@@ -129,6 +128,24 @@ def test_get_code_returns_none(mock_get_repo, client, test_db):
     assert response.json()["repo"] is None
 
 
+@patch("app.routers.papers.pwc_service.get_repo")
+def test_get_code_uses_cached_repo(mock_get_repo, client, test_db):
+    """If paper already has github_repo, endpoint should not call external service."""
+    paper = Paper(
+        title="Cached Repo Paper",
+        pdf_path="/test/paper.pdf",
+        github_repo="https://github.com/example/cached",
+    )
+    test_db.add(paper)
+    test_db.commit()
+    test_db.refresh(paper)
+
+    response = client.get(f"/api/papers/{paper.id}/code")
+    assert response.status_code == 200
+    assert response.json()["repo"] == "https://github.com/example/cached"
+    mock_get_repo.assert_not_called()
+
+
 @patch("app.routers.papers.pdf_service.extract_metadata")
 @patch("app.routers.papers.glob.glob")
 def test_scan_papers_folder(mock_glob, mock_extract, client, test_db):
@@ -149,3 +166,22 @@ def test_scan_papers_folder(mock_glob, mock_extract, client, test_db):
     assert len(papers) == 2
     assert papers[0].year == 2023
     assert papers[1].year == 2024
+
+
+@patch("app.routers.papers.pdf_service.extract_metadata")
+@patch("app.routers.papers.glob.glob")
+def test_scan_papers_folder_skips_existing(mock_glob, mock_extract, client, test_db):
+    """scan_papers_folder should skip PDF paths already in DB."""
+    from app.routers.papers import scan_papers_folder
+
+    existing = Paper(title="Existing", pdf_path="/fake/papers/2024_test2.pdf")
+    test_db.add(existing)
+    test_db.commit()
+
+    mock_glob.return_value = ["/fake/papers/2023_test1.pdf", "/fake/papers/2024_test2.pdf"]
+    mock_extract.return_value = {"title": "Mocked Title", "authors": "A", "abstract": "B"}
+
+    scan_papers_folder("/fake/papers", test_db)
+
+    papers = test_db.query(Paper).all()
+    assert len(papers) == 2

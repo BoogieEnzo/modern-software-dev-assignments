@@ -9,21 +9,23 @@
   <body>
     <main class="container">
       <header class="hero">
-        <h1>Repo Daily Brief</h1>
+        <h1>📊 Repo Daily Brief</h1>
         <p id="meta">正在更新今日推荐...</p>
       </header>
 
-      <section class="trending-section">
-        <h2 class="section-title">🔥 7天热门增长</h2>
-        <section id="state-7d" class="state">加载中...</section>
-        <section id="cards-7d" class="cards" hidden></section>
-      </section>
+      <div class="two-columns">
+        <section class="trending-section">
+          <h2 class="section-title">🔥 7天热门增长</h2>
+          <section id="state-7d" class="state">加载中...</section>
+          <section id="cards-7d" class="cards" hidden></section>
+        </section>
 
-      <section class="trending-section">
-        <h2 class="section-title">📈 30天热门增长</h2>
-        <section id="state-30d" class="state">加载中...</section>
-        <section id="cards-30d" class="cards" hidden></section>
-      </section>
+        <section class="trending-section">
+          <h2 class="section-title">📈 30天热门增长</h2>
+          <section id="state-30d" class="state">加载中...</section>
+          <section id="cards-30d" class="cards" hidden></section>
+        </section>
+      </div>
     </main>
 
     <script src="/static/app.js" defer></script>

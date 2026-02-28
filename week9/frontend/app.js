@@ -15,7 +15,7 @@ async function loadBrief() {
     }
 
     const data = await res.json();
-    metaEl.textContent = `日期 ${data.date} · 更新于 ${new Date(data.generated_at).toLocaleString()}`;
+    metaEl.textContent = `📅 ${data.date} · 更新时间 ${new Date(data.generated_at).toLocaleString()}`;
 
     renderCards(data.repos_7d, cards7dEl, state7dEl);
     renderCards(data.repos_30d, cards30dEl, state30dEl);
@@ -46,13 +46,16 @@ function renderCards(repos, cardsEl, stateEl) {
         <h2>${idx + 1}. <a href="${repo.repo_url}" target="_blank" rel="noreferrer">${repo.full_name}</a></h2>
         <p class="desc">${repo.description || "暂无描述"}</p>
         <div class="metrics">
-          <span>语言: ${repo.language || "Unknown"}</span>
-          <span>Stars: ${repo.stars_today}</span>
-          <span>7天增星: ${repo.weekly_star_gain}</span>
-          <span>30天增星: ${repo.monthly_star_gain}</span>
-          <span>Forks: ${repo.forks}</span>
+          <span>⭐ ${repo.stars_today}</span>
+          <span>🔥 +${repo.weekly_star_gain}/7d</span>
+          <span>📈 +${repo.monthly_star_gain}/30d</span>
+          <span>🍴 ${repo.forks}</span>
         </div>
-        <p class="reason">推荐理由: ${repo.reason}</p>
+        <div class="meta-info">
+          <span>语言: ${repo.language || "Unknown"}</span>
+          <span>创建: ${repo.created_at}</span>
+        </div>
+        <p class="reason">💡 ${repo.reason}</p>
       </article>
     `
     )

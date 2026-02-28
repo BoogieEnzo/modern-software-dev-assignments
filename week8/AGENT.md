@@ -44,12 +44,12 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/ -v
 | `app/schemas.py` | Pydantic 响应模型 |
 | `app/database.py` | 数据库连接, SessionLocal, get_db |
 | `app/routers/papers.py` | 论文 CRUD, 下载, AI摘要, GitHub关联 |
-| `app/routers/favorites.py` | 收藏功能 |
+| `app/routers/chat.py` | 全站聊天接口 |
 | `app/routers/search.py` | ArXiv 在线搜索 |
 | `app/services/arxiv.py` | ArXiv API 封装 |
 | `app/services/paperswithcode.py` | GitHub 仓库查询 |
-| `app/services/ollama.py` | 本地 AI 摘要生成 |
-| `app/services/pdf.py` | PDF 元数据提取 |
+| `app/services/ollama.py` | 本地 AI 摘要/聊天 |
+| `app/services/pdf.py` | PDF 元数据/全文提取 |
 | `app/static/index.html` | 前端页面 |
 | `app/static/app.js` | 前端逻辑 |
 | `papers/` | 论文 PDF 存储目录 |
@@ -94,7 +94,7 @@ PYTHONPATH=. .venv/bin/python -m pytest tests/ -v
 ## 对话功能方案（约定）
 
 - **两处对话**：
-  1. **全站对话**：在**论文列表 tab** 的某处放一个聊天框（不依赖当前选中论文）。用户输入、后端调 Ollama 回复；无 PDF 上下文，可做通用问答。
+  1. **全站对话**：固定在页面右下角（不依赖当前选中论文）。用户输入、后端调 Ollama 回复；无 PDF 上下文，可做通用问答。
   2. **论文内对话**：用户**点进某篇论文详情**后，在该详情内再提供对话区。此处对话**基于该论文 PDF 全文**：后端用本地 Ollama 读取该论文已下载的 PDF 全文（先抽取正文再送 Ollama），再根据用户问题回答。**前提**：该论文已下载到本地（有 `pdf_path` 且文件存在），否则提示先下载。
 - **实现要点**：论文内对话需 **PDF 全文抽取**（如 pdfplumber）；后端提供「带 PDF 上下文的 chat」接口（例如 `POST /api/papers/{id}/chat`），请求体含用户消息，后端拼 prompt（论文全文 + 用户问题）调 Ollama 生成回复。全站对话可用单独接口（如 `POST /api/chat`）无论文上下文。
 
@@ -139,7 +139,6 @@ class Config:
 | GET | `/api/papers/{id}/summarize` | AI摘要 |
 | GET | `/api/papers/{id}/code` | GitHub仓库 |
 | GET | `/api/search/?q=` | ArXiv在线搜索 |
-| GET/POST/DELETE | `/api/favorites/` | 收藏管理（前端已去掉，可保留或废弃） |
 | POST | `/api/chat` | 全站对话（无论文上下文，Ollama） |
 | POST | `/api/papers/{id}/chat` | 论文内对话（基于该论文 PDF 全文，需已下载到本地） |
 
@@ -147,44 +146,23 @@ class Config:
 
 ## 测试现状与要求
 
-### 现有测试 (不充分)
-- `test_papers.py` — 基本CRUD, 缺少分页、边界、异常
-- `test_search.py` — 只mock了服务, 缺少参数验证
-- `test_favorites.py` — 较完整, 缺少级联删除测试
-- `test_ai_summary.py` — 覆盖不足
-- **无前端测试**
+### 当前测试基线（按现需求）
+- `test_papers.py`: 列表/详情/下载/代码关联/扫描逻辑。
+- `test_search.py`: 空查询、正常查询、异常返回、参数透传。
+- `test_ai_summary.py`: 404、Ollama 不可用、生成成功、生成失败。
+- `test_chat.py`: 全站聊天与论文聊天的成功和关键错误分支。
 
-### 必须增加的测试
+### 丢弃策略（删除无效测试）
+删除或改写以下测试：
+1. 依赖旧需求（favorites/recommendation）的测试。
+2. 断言过弱的测试（例如“summary 或 error 都算通过”）。
+3. 与现接口行为不一致的断言（如错误字段写成 `error` 而不是 `detail`）。
 
-#### 后端测试
-1. **参数验证**
-   - 负数ID (`/api/papers/-1`)
-   - 非法arxiv_id格式
-   - max_results=0 或负数
-
-2. **边界条件**
-   - 空数据库
-   - 超大结果集分页
-   - Paper删除后Favorite是否正确处理
-
-3. **异常处理**
-   - 数据库连接失败
-   - ArXiv/PapersWithCode/Ollama 超时
-   - PDF文件不存在
-
-4. **业务逻辑**
-   - 重复收藏
-   - 已存在论文的下载
-   - summary 生成失败保存
-
-#### 前端测试 (用 Playwright)
-1. 页面加载验证
-2. Tab 切换功能
-3. 搜索/过滤逻辑
-4. 收藏按钮交互
-5. Modal 打开/关闭
-6. 错误状态显示
-7. 空状态显示
+### 必须覆盖的关键错误分支
+1. `/api/chat`: Ollama 不可用、Ollama 无回复。
+2. `/api/papers/{id}/chat`: 无论文、无 pdf_path、文件不存在、文本提取失败、Ollama 不可用、Ollama 无回复。
+3. `/api/papers/{id}/summarize`: 论文不存在、Ollama 不可用、生成失败。
+4. `/api/papers/download`: 重复下载不触发外部下载、外部下载异常返回 500。
 
 ---
 

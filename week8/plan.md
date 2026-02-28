@@ -1,236 +1,99 @@
-# Week 8 Plan: OS Paper Hub
+# Week 8 Plan: OS Paper Hub (Current Scope)
 
 ## 项目目标
-个人操作系统论文知识库 + AI 辅助理解。
+做一个本地运行的 OS 论文站：本地论文列表 + ArXiv 搜索下载 + AI 摘要 + 聊天问答。
 
 ---
 
-## 核心功能
+## 当前需求基线（以此为准）
 
-### 1. 内置20篇经典OS论文
-- `papers/` 文件夹预置20篇经典论文PDF ✅ 已完成
-
-### 2. ArXiv搜索下载
-- 前端搜索ArXiv论文
-- 点击下载 → 保存到本地
-- 自动解析PDF元数据
-
-### 3. AI摘要生成
-- 本地Ollama生成摘要
-- 存JSON，他人clone可直接查看
-
-### 4. GitHub代码关联
-- Papers with Code API 查询关联仓库
-
-### 5. 基础功能
-- 论文列表、详情、搜索、收藏
+1. 顶部只保留两个入口：`搜索 ArXiv`（前）和 `论文列表`（后）。
+2. 不做推荐，不做收藏，前端不展示任何 favorites/recommendation 入口。
+3. `论文列表` 用表格一行一条展示：标题、作者、年份。
+4. 点击论文行优先在新标签页直接打开 PDF；无本地 PDF 时才退化为详情弹窗。
+5. 搜索结果包含年份列，下载按钮体积小（视觉弱化）。
+6. 全站聊天固定在页面右下角。
+7. 论文内聊天基于本地 PDF 全文（先下载到本地才可用）。
+8. AI 摘要和聊天必须有加载态与页面内错误提示（尤其 Ollama 未启动）。
+9. 端口固定 `8001`，并支持 Mac -> Linux SSH 隧道访问。
 
 ---
 
-## 技术方案
+## API 设计（当前）
 
-**FastAPI + SQLite + 简单HTML**
-
-| 功能 | 技术 |
-|------|------|
-| 后端 | FastAPI |
-| 数据库 | SQLite |
-| ArXiv | `arxiv` Python库 |
-| Papers with Code | `paperswithcode-client` 库 |
-| AI摘要 | Ollama API |
-| PDF解析 | `pdfplumber` |
-| 前端 | HTML + JS（嵌在后端） |
-
----
-
-## Agent 任务分配
-
-### Agent 1: 前端 👨‍🎨
-- 任务：实现 HTML/CSS/JS 界面
-- 职责：
-  - 论文列表页面
-  - 论文详情页面
-  - ArXiv搜索界面
-  - 收藏功能
-- Category: `visual-engineering`
-
-### Agent 2: 后端 🔧
-- 任务：实现 FastAPI 服务
-- 职责：
-  - 数据库模型 (SQLAlchemy)
-  - API路由 (papers, favorites, search)
-  - ArXiv 集成
-  - Papers with Code 集成
-  - Ollama AI 摘要集成
-- Category: `deep`
-
-### Agent 3: 测试 🧪
-- 任务：编写测试用例
-- 职责：
-  - API单元测试
-  - 集成测试
-  - 边界情况测试
-- Category: `quick`
-
-### Agent 4: QA Review ✅
-- 任务：代码审查
-- 职责：
-  - 检查代码质量
-  - 验证功能完整性
-  - 确保符合最佳实践
-- Category: `momus`
-
----
-
-## 项目结构
-
-```
-week8/
-├── papers/                    # 论文PDF (20篇已完成)
-│   └── summaries/             # AI摘要JSON
-├── app/
-│   ├── main.py               # FastAPI入口
-│   ├── models.py             # 数据库模型
-│   ├── routers/              # API路由
-│   │   ├── papers.py
-│   │   └── favorites.py
-│   ├── services/             # 业务逻辑
-│   │   ├── arxiv.py          # ArXiv搜索下载
-│   │   ├── paperswithcode.py # GitHub关联
-│   │   ├── ollama.py         # AI摘要
-│   │   └── pdf.py            # PDF解析
-│   └── static/               # 前端HTML/JS
-├── tests/                    # 测试用例
-├── data/                     # SQLite数据库
-├── requirements.txt
-└── README.md
+```text
+GET  /api/papers/                # 本地论文列表
+GET  /api/papers/{id}            # 论文详情
+POST /api/papers/download        # ArXiv 下载并入库
+GET  /api/papers/{id}/summarize  # 生成/保存 AI 摘要
+GET  /api/papers/{id}/code       # 查论文相关代码仓库
+GET  /api/search/?q=&max_results=# ArXiv 搜索
+POST /api/chat                   # 全站聊天（无论文上下文）
+POST /api/papers/{id}/chat       # 论文聊天（PDF 全文上下文）
 ```
 
 ---
 
-## API 设计
+## 非功能约束
 
-```
-GET  /api/papers/              # 论文列表
-GET  /api/papers/{id}          # 论文详情
-POST /api/papers/download      # 从ArXiv下载论文
-GET  /api/papers/{id}/summarize # AI摘要生成
-GET  /api/papers/{id}/code     # GitHub关联仓库
-GET  /api/search?q=            # 搜索ArXiv在线
-POST /api/favorites/           # 收藏
-GET  /api/favorites/           # 收藏列表
-```
+- 启动服务不能被初始扫描长时间阻塞（后台线程扫描 `papers/`）。
+- 前端静态资源避免缓存污染（版本戳 + no-cache 头）。
+- `loadPapers` 请求超时要有明确错误文案与重试按钮。
 
 ---
 
-## 环境变量
+## 启动与验证
 
-```bash
-# 可选: 设置 Ollama 模型 (默认: gemma3:1b)
-export OLLAMA_MODEL=gemma3:1b
-```
+### 1) 服务启动
 
----
-
-## 验证功能
-
-### 1. 启动服务
-
-默认端口 8001，访问 http://localhost:8001
-
-如果需要重启:
 ```bash
 cd /home/fengde/Projects/modern-software-dev-assignments/week8
 source .venv/bin/activate
-export OLLAMA_MODEL=gemma3:1b  # 可选
+export OLLAMA_MODEL=gemma3:1b   # 可选
 python -m app.main
 ```
 
-### 2. 浏览器验证
+访问：`http://localhost:8001`
 
-访问: **http://localhost:8001**
-
-验证项目:
-1. **论文列表** - 应显示20篇预置论文
-2. **搜索ArXiv** - 输入关键词搜索，点击下载
-3. **收藏功能** - 点击收藏按钮，切换到收藏Tab查看
-4. **AI摘要** - 点击论文→查看详情→生成AI摘要 (需启动Ollama)
-5. **GitHub关联** - 查看论文详情中的代码链接
-
-### 3. API 验证
+### 2) Ollama 检查与启动
 
 ```bash
-# 论文列表
-curl http://localhost:8001/api/papers/
-
-# 搜索ArXiv
-curl "http://localhost:8001/api/search?q=distributed systems&max_results=5"
-
-# 论文详情
-curl http://localhost:8001/api/papers/1
-
-# 收藏列表
-curl http://localhost:8001/api/favorites/
-
-# AI摘要 (需Ollama运行中)
-curl http://localhost:8001/api/papers/1/summarize
-
-# GitHub代码
-curl http://localhost:8001/api/papers/1/code
-```
-
-### 4. Ollama 启动与检查
-
-Ollama 与 week8 **是两个独立进程**：启动 `python -m app.main` **不会**自动启动 Ollama。要使用 AI 摘要/对话，必须先保证本机已有 Ollama 在跑（`ollama serve` 已执行过）。week8 只负责连 `http://localhost:11434` 调用 Ollama。
-
-Ollama 与 week8 同机（Linux 服务器），监听 `127.0.0.1:11434`。
-
-**先检查是否已在跑：**
-```bash
-# 若 11434 已被占用，说明 Ollama 已在运行，无需再启动
-ss -tlnp | grep 11434
-# 或
+ss -tlnp | rg 11434
 curl -s http://localhost:11434/api/tags
 ```
-若出现 `listen ... 127.0.0.1:11434` 或返回 JSON，则已在跑，直接执行 `ollama list` 和用 week8 即可。
 
-**若未在跑，再启动：**
+未运行时：
+
 ```bash
-ollama serve              # 前台（当前终端占着）
-# 或后台：
+ollama serve
+# 或
 nohup ollama serve > /tmp/ollama.log 2>&1 &
 ```
-若执行 `ollama serve` 报错 `address already in use`，表示已在跑，不要重复启动。
 
-**验证与测试模型：**
+### 3) SSH 隧道（Mac 浏览器访问 Linux）
+
 ```bash
-ollama list                # 查看已拉取模型（如 gemma3:1b）
-ollama run gemma3:1b "Hello"   # 测试生成
+ssh -L 8001:localhost:8001 fengde@<服务器IP>
 ```
 
-### 5. 远程访问 (Mac 通过隧道访问 Linux 服务器)
-
-| 步骤 | 位置 | 操作 |
-|-----|------|------|
-| 启动服务 | 服务器 | `cd week8 && source .venv/bin/activate && python -m app.main` |
-| 建隧道 | Mac | `ssh -L 8001:localhost:8001 fengde@<服务器IP>`，保持会话 |
-| 浏览器 | Mac Chrome | `http://localhost:8001` |
-| 测试 | 服务器 | `cd week8 && PYTHONPATH=. .venv/bin/python -m pytest tests/ -v` |
+Mac 浏览器访问：`http://localhost:8001`
 
 ---
 
-## 进度
+## 测试计划（当前）
 
-- [x] 20篇论文下载 ✅
-- [x] 前端开发 ✅
-- [x] 后端开发 ✅ (已修复依赖问题)
-- [x] 基础功能 ✅ (论文列表、搜索、收藏、AI摘要、GitHub关联)
-- [ ] 测试编写
-- [ ] QA Review
+后端必须覆盖：
+
+1. 论文接口：空列表、详情不存在、下载成功/重复/失败、代码关联成功/空/不存在。
+2. 搜索接口：空查询、正常查询、异常 500、参数透传。
+3. AI 摘要：论文不存在、Ollama 不可用、生成成功、生成失败。
+4. 全站聊天：成功、Ollama 不可用、Ollama 无回复。
+5. 论文聊天：论文不存在、无 PDF、PDF 文件缺失、Ollama 不可用、PDF 提取失败、无回复、成功。
+6. 扫描逻辑：从文件名提取年份、跳过重复 PDF。
 
 ---
 
-## 已知问题
+## 已知限制
 
-1. PDF元数据提取 - 部分PDF标题显示不正常（PDF解析限制）
-2. Ollama AI摘要需要本地运行Ollama服务
+1. PDF 元数据提取受 PDF 文本质量影响，标题/作者可能不完整。
+2. AI 功能依赖本机 Ollama 服务与模型可用性。

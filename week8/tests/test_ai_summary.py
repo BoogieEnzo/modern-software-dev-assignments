@@ -50,6 +50,8 @@ def test_summarize_paper_with_ollama_available(mock_is_available, mock_generate_
     data = response.json()
     assert "summary" in data
     assert data["summary"] == "This is an AI-generated summary of the paper."
+    test_db.refresh(paper)
+    assert paper.summary == "This is an AI-generated summary of the paper."
 
 
 @patch("app.routers.papers.ollama_service.generate_summary")

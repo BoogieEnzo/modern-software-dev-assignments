@@ -18,19 +18,18 @@ class UpstreamFetchError(Exception):
 
 def build_reason(repo: Dict[str, Any], weekly_star_gain: int, monthly_star_gain: int) -> str:
     language = repo.get("language") or "该技术栈"
-    updated_at = parse_iso_datetime(repo["updated_at"]).strftime("%Y-%m-%d")
 
     if weekly_star_gain > 50:
         return f"🔥 近7天暴涨{weekly_star_gain}星！{language}领域新星值得关注！"
     elif weekly_star_gain > 20:
-        return f"近7天增长{weekly_star_gain}星，{language}生态近期讨论度高，且最近在{updated_at}仍有更新。"
+        return f"近7天增长{weekly_star_gain}星，{language}生态近期讨论度高"
     elif monthly_star_gain > 100:
-        return f"近30天增长{monthly_star_gain}星，{language}社区持续关注，且最近在{updated_at}仍有更新。"
+        return f"近30天增长{monthly_star_gain}星，{language}社区持续关注"
     elif monthly_star_gain > 30:
-        return f"近30天增长{monthly_star_gain}星，{language}社区持续关注。"
+        return f"近30天增长{monthly_star_gain}星，{language}社区持续关注"
     else:
         stars_today = int(repo.get("stargazers_count", 0))
-        return f"累计{stars_today}星，{language}社区关注度仍高，且最近在{updated_at}持续更新。"
+        return f"累计{stars_today}星，{language}社区关注度高"
 
 
 def _eligible(repo: Dict[str, Any]) -> bool:
@@ -134,6 +133,7 @@ def get_today_trending(limit: int = 10) -> Dict[str, Any]:
             "weekly_star_gain": weekly_gain,
             "monthly_star_gain": monthly_gain,
             "forks": int(repo.get("forks_count", 0)),
+            "created_at": created_at.strftime("%Y-%m-%d"),
             "updated_at": parse_iso_datetime(repo["updated_at"]),
             "reason": build_reason(repo, weekly_gain, monthly_gain),
         }
