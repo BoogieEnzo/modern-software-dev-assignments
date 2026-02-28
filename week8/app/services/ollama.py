@@ -4,20 +4,32 @@ import httpx
 import os
 from typing import Optional
 
-
 class OllamaService:
     def __init__(self, base_url: str = "http://localhost:11434"):
         self.base_url = base_url
         self.model = os.environ.get("OLLAMA_MODEL", "gemma3:1b")
+        self.timeout_seconds = self._load_timeout_seconds()
 
-    def _get_client(self, timeout: float = 5) -> httpx.Client:
+    def _load_timeout_seconds(self) -> float:
+        """Load Ollama request timeout from env with safe fallback (default 300s)."""
+        raw = os.environ.get("OLLAMA_TIMEOUT_SECONDS", "300")
+        try:
+            timeout = float(raw)
+            if timeout <= 0:
+                raise ValueError
+            return timeout
+        except ValueError:
+            return 300.0
+
+    def _get_client(self, timeout: Optional[float] = None) -> httpx.Client:
         """Get httpx client without proxy for localhost."""
-        return httpx.Client(timeout=timeout, trust_env=False)
+        t = timeout if timeout is not None else self.timeout_seconds
+        return httpx.Client(timeout=httpx.Timeout(t), trust_env=False)
 
     def is_available(self) -> bool:
         """Check if Ollama is running."""
         try:
-            client = self._get_client()
+            client = self._get_client(timeout=5)
             response = client.get(f"{self.base_url}/api/tags")
             client.close()
             return response.status_code == 200
@@ -38,7 +50,7 @@ Abstract: {paper_abstract}
 Summary:"""
 
         try:
-            client = self._get_client(timeout=60)
+            client = self._get_client()
             response = client.post(
                 f"{self.base_url}/api/generate",
                 json={
@@ -69,7 +81,7 @@ User question: {message}
 
 Answer:"""
         try:
-            client = self._get_client(timeout=60)
+            client = self._get_client()
             response = client.post(
                 f"{self.base_url}/api/generate",
                 json={

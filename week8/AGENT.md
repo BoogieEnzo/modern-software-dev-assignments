@@ -18,6 +18,8 @@ source .venv/bin/activate
 
 # 启动服务 (可选: 设置Ollama模型)
 export OLLAMA_MODEL=gemma3:1b
+# 可选: 设置 Ollama 请求超时时间 (秒, 默认: 300)；若仍 503 可改为 400 或 600 并重启服务
+export OLLAMA_TIMEOUT_SECONDS=300
 python -m app.main
 
 # 运行测试 (必须用本目录 .venv，否则缺 arxiv 等依赖)
@@ -251,6 +253,7 @@ curl http://localhost:8001/docs
    ollama run gemma3:1b "用三句话解释 Linux kernel scheduler"
    ```
 3. 若复杂问题超时频繁：
+   - **先重启 week8 服务**（`python -m app.main`），确保加载了最新超时配置。
+   - 设置更长超时：`export OLLAMA_TIMEOUT_SECONDS=400`（或 600）后重启服务。
    - 缩短提问长度（先让模型列提纲，再分步追问）。
    - 降低上下文长度（论文对话先问局部章节）。
-   - 切换更快模型或提高后端超时阈值（后续代码改造项）。

@@ -74,6 +74,10 @@ def get_today_trending(limit: int = 5) -> Dict[str, Any]:
 
     client = GitHubClient()
     start_ts = time.monotonic()
+    max_duration_sec = 90.0
+    start_ts = time.monotonic()
+    max_duration_sec = 60.0
+    start_ts = time.monotonic()
     max_duration_sec = 25.0
 
     try:
